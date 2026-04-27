@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import {
@@ -45,6 +45,28 @@ export function TestimonialForm({ onSubmit, submitting }: Props) {
 
   const [internalSubmitting, setInternalSubmitting] = useState(false);
   const isBusy = submitting || internalSubmitting;
+
+  const quotePt = useWatch({ control, name: "quote_pt" }) ?? "";
+  const quoteEn = useWatch({ control, name: "quote_en" }) ?? "";
+
+  function quoteHint(text: string): { label: string; tone: string } {
+    const len = text.replace(/\s+/g, " ").trim().length;
+    if (len === 0) return { label: "0 / 250", tone: "text-sr-grey-dim" };
+    if (len <= 140) return { label: `${len} / 250 · tamanho cheio`, tone: "text-sr-grey" };
+    if (len <= 200)
+      return {
+        label: `${len} / 250 · vai renderizar em tamanho médio`,
+        tone: "text-sr-grey",
+      };
+    if (len <= 250)
+      return {
+        label: `${len} / 250 · vai renderizar em tamanho compacto`,
+        tone: "text-sr-grey",
+      };
+    return { label: `${len} / 250 · excede o limite`, tone: "text-sr-red" };
+  }
+  const ptHint = quoteHint(quotePt);
+  const enHint = quoteHint(quoteEn);
 
   const submit = handleSubmit(async (values) => {
     setInternalSubmitting(true);
@@ -151,6 +173,7 @@ export function TestimonialForm({ onSubmit, submitting }: Props) {
                 placeholder="Formação séria e com impacto…"
                 {...register("quote_pt")}
               />
+              <p className={`mt-1 text-xs ${ptHint.tone}`}>{ptHint.label}</p>
               {errors.quote_pt && (
                 <p className="mt-1 text-sm text-sr-red">
                   {errors.quote_pt.message}
@@ -206,6 +229,7 @@ export function TestimonialForm({ onSubmit, submitting }: Props) {
                 placeholder="Serious training with real impact…"
                 {...register("quote_en")}
               />
+              <p className={`mt-1 text-xs ${enHint.tone}`}>{enHint.label}</p>
               {errors.quote_en && (
                 <p className="mt-1 text-sm text-sr-red">
                   {errors.quote_en.message}

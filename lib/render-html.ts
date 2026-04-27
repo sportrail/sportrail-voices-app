@@ -16,9 +16,13 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function normaliseQuote(value: string): string {
+  return value.replace(/\s*\r?\n\s*/g, " ").replace(/[ \t]+/g, " ").trim();
+}
+
 function e(data: TestimonialLangData) {
   return {
-    quote: escapeHtml(data.quote),
+    quote: escapeHtml(normaliseQuote(data.quote)),
     name: escapeHtml(data.name),
     role: escapeHtml(data.role),
     affiliation: escapeHtml(data.affiliation),
@@ -27,12 +31,29 @@ function e(data: TestimonialLangData) {
   };
 }
 
+type QuoteScale = { fontSize: number; lineHeight: number };
+
+function quoteScale4x5(quote: string): QuoteScale {
+  const len = normaliseQuote(quote).length;
+  if (len <= 140) return { fontSize: 38, lineHeight: 1.25 };
+  if (len <= 200) return { fontSize: 32, lineHeight: 1.3 };
+  return { fontSize: 28, lineHeight: 1.32 };
+}
+
+function quoteScale9x16(quote: string): QuoteScale {
+  const len = normaliseQuote(quote).length;
+  if (len <= 140) return { fontSize: 56, lineHeight: 1.25 };
+  if (len <= 200) return { fontSize: 46, lineHeight: 1.28 };
+  return { fontSize: 38, lineHeight: 1.3 };
+}
+
 export function buildHtml4x5(
   data: TestimonialLangData,
   photoB64: string,
   logoB64: string,
 ): string {
   const d = e(data);
+  const scale = quoteScale4x5(data.quote);
   return `
 <!DOCTYPE html>
 <html>
@@ -129,8 +150,8 @@ export function buildHtml4x5(
   .quote {
     font-family: 'DM Sans', sans-serif;
     font-weight: 500;
-    font-size: 38px;
-    line-height: 1.25;
+    font-size: ${scale.fontSize}px;
+    line-height: ${scale.lineHeight};
     color: #FAF8F5;
     letter-spacing: -0.5px;
     position: relative;
@@ -209,6 +230,7 @@ export function buildHtml9x16(
   logoB64: string,
 ): string {
   const d = e(data);
+  const scale = quoteScale9x16(data.quote);
   return `
 <!DOCTYPE html>
 <html>
@@ -300,8 +322,8 @@ export function buildHtml9x16(
   .quote {
     font-family: 'DM Sans', sans-serif;
     font-weight: 500;
-    font-size: 56px;
-    line-height: 1.25;
+    font-size: ${scale.fontSize}px;
+    line-height: ${scale.lineHeight};
     color: #FAF8F5;
     letter-spacing: -0.5px;
     margin-top: 30px;
