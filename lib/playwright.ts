@@ -3,7 +3,7 @@ import type { Browser } from "playwright-core";
 
 const REMOTE_CHROMIUM_PACK =
   process.env.CHROMIUM_PACK_URL ??
-  "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar";
+  "https://github.com/Sparticuz/chromium/releases/download/v147.0.2/chromium-v147.0.2-pack.x64.tar";
 
 function isServerless(): boolean {
   return Boolean(
