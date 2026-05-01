@@ -1,10 +1,6 @@
 import { chromium as playwrightChromium } from "playwright-core";
 import type { Browser } from "playwright-core";
 
-const REMOTE_CHROMIUM_PACK =
-  process.env.CHROMIUM_PACK_URL ??
-  "https://github.com/Sparticuz/chromium/releases/download/v147.0.2/chromium-v147.0.2-pack.x64.tar";
-
 function isServerless(): boolean {
   return Boolean(
     process.env.AWS_LAMBDA_FUNCTION_NAME ||
@@ -15,11 +11,17 @@ function isServerless(): boolean {
 
 async function launchBrowser(): Promise<Browser> {
   if (isServerless()) {
-    const chromiumModule = await import("@sparticuz/chromium-min");
+    // @sparticuz/chromium (full) bundles the chromium binary AND its required
+    // shared libraries (libnss3.so etc.) inside node_modules. The previous
+    // -min variant downloaded a remote pack and extracted to /tmp at runtime,
+    // which intermittently left the libs missing on Vercel and produced
+    // "error while loading shared libraries: libnss3.so". Switching to the
+    // full package eliminates the /tmp extraction race entirely.
+    const chromiumModule = await import("@sparticuz/chromium");
     const chromium = chromiumModule.default;
     return playwrightChromium.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(REMOTE_CHROMIUM_PACK),
+      executablePath: await chromium.executablePath(),
       headless: true,
     });
   }
