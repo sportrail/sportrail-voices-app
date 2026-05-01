@@ -47,7 +47,7 @@ export type ApiTestimonialValues = z.infer<typeof apiTestimonialSchema>;
 export function slugify(name: string): string {
   return name
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "_")

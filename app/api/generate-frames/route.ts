@@ -9,6 +9,7 @@ import {
   type FrameKind,
 } from "@/lib/render-frame";
 import { frameRequestSchema } from "@/lib/frame-validation";
+import { slugify } from "@/lib/validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -34,16 +35,6 @@ function frameFilename(
 ): string {
   const variant = generic ? "generic" : slug;
   return `Sportrail_Frame_${kind}_${format}_${lang}_${variant}.png`;
-}
-
-function slugify(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
 }
 
 export async function POST(request: NextRequest) {
