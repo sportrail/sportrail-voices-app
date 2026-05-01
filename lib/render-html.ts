@@ -1,3 +1,5 @@
+import { FONTS_INLINE_STYLE } from "./fonts-inline";
+
 export type TestimonialLangData = {
   quote: string;
   name: string;
@@ -59,9 +61,7 @@ export function buildHtml4x5(
 <html>
 <head>
 <meta charset="UTF-8">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+${FONTS_INLINE_STYLE}
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1080px; height: 1350px; overflow: hidden; }
@@ -236,9 +236,7 @@ export function buildHtml9x16(
 <html>
 <head>
 <meta charset="UTF-8">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+${FONTS_INLINE_STYLE}
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1080px; height: 1920px; overflow: hidden; }

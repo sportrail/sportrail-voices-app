@@ -1,3 +1,5 @@
+import { FONTS_INLINE_STYLE } from "./fonts-inline";
+
 export type FrameKind = "A" | "B" | "C";
 export type FrameFormat = "9x16" | "1x1" | "16x9";
 
@@ -62,9 +64,7 @@ function normaliseQuote(value: string): string {
   return value.replace(/\s*\r?\n\s*/g, " ").replace(/[ \t]+/g, " ").trim();
 }
 
-const FONTS_LINK = `<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">`;
+
 
 const BASE_RESET = `* { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { background: transparent; font-family: 'DM Sans', sans-serif; }`;
@@ -135,7 +135,7 @@ function buildFrameA(args: FrameBuildArgs): string {
 <html>
 <head>
 <meta charset="UTF-8">
-${FONTS_LINK}
+${FONTS_INLINE_STYLE}
 <style>
   ${BASE_RESET}
   html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
@@ -298,7 +298,7 @@ function buildFrameB(args: FrameBuildArgs): string {
 <html>
 <head>
 <meta charset="UTF-8">
-${FONTS_LINK}
+${FONTS_INLINE_STYLE}
 <style>
   ${BASE_RESET}
   html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
@@ -446,7 +446,7 @@ function buildFrameC(args: FrameBuildArgs): string {
 <html>
 <head>
 <meta charset="UTF-8">
-${FONTS_LINK}
+${FONTS_INLINE_STYLE}
 <style>
   ${BASE_RESET}
   html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
