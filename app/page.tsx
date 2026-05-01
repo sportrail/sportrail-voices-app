@@ -6,6 +6,7 @@ import {
   PreviewGrid,
   type GeneratedPosts,
 } from "@/components/preview-grid";
+import { FrameSection } from "@/components/frame-section";
 import type { TestimonialFormValues } from "@/lib/validation";
 
 type State =
@@ -14,8 +15,25 @@ type State =
   | { kind: "success"; posts: GeneratedPosts }
   | { kind: "error"; message: string };
 
+type SharedTestimonial = {
+  name: string;
+  role: string;
+  affiliation: string;
+  quote_pt: string;
+  quote_en: string;
+};
+
+const EMPTY_TESTIMONIAL: SharedTestimonial = {
+  name: "",
+  role: "",
+  affiliation: "",
+  quote_pt: "",
+  quote_en: "",
+};
+
 export default function HomePage() {
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [shared, setShared] = useState<SharedTestimonial>(EMPTY_TESTIMONIAL);
 
   async function handleSubmit(values: TestimonialFormValues) {
     setState({ kind: "submitting" });
@@ -86,6 +104,7 @@ export default function HomePage() {
             <TestimonialForm
               onSubmit={handleSubmit}
               submitting={state.kind === "submitting"}
+              onValuesChange={setShared}
             />
 
             {state.kind === "submitting" && (
@@ -109,6 +128,10 @@ export default function HomePage() {
             )}
           </>
         )}
+      </section>
+
+      <section className="mt-10 rounded-sr bg-sr-black p-8 text-sr-cream shadow-lg md:p-10">
+        <FrameSection testimonial={shared} />
       </section>
 
       <footer className="mt-10 text-center text-xs uppercase tracking-[0.25em] text-sr-grey-dim">

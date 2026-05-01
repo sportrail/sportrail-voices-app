@@ -32,10 +32,15 @@ async function launchBrowser(): Promise<Browser> {
   });
 }
 
+export type RenderHtmlOptions = {
+  transparent?: boolean;
+};
+
 export async function renderHtmlToPng(
   html: string,
   width: number,
   height: number,
+  options: RenderHtmlOptions = {},
 ): Promise<Buffer> {
   const browser = await launchBrowser();
   try {
@@ -46,7 +51,10 @@ export async function renderHtmlToPng(
     const page = await context.newPage();
     await page.setContent(html, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
-    const buffer = await page.screenshot({ fullPage: false });
+    const buffer = await page.screenshot({
+      fullPage: false,
+      omitBackground: options.transparent === true,
+    });
     return buffer;
   } finally {
     await browser.close();

@@ -2,7 +2,7 @@
 
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_LABELS,
   testimonialFormSchema,
@@ -13,6 +13,13 @@ import { PhotoUploader } from "./photo-uploader";
 type Props = {
   onSubmit: (values: TestimonialFormValues) => Promise<void> | void;
   submitting: boolean;
+  onValuesChange?: (values: {
+    name: string;
+    role: string;
+    affiliation: string;
+    quote_pt: string;
+    quote_en: string;
+  }) => void;
 };
 
 const FIELD_LABEL_CLASS =
@@ -20,7 +27,7 @@ const FIELD_LABEL_CLASS =
 const INPUT_CLASS =
   "mt-2 block w-full rounded-sr border border-sr-border bg-sr-black px-4 py-3 text-sr-cream placeholder:text-sr-grey-dim focus:border-sr-red focus:outline-none focus:ring-1 focus:ring-sr-red";
 
-export function TestimonialForm({ onSubmit, submitting }: Props) {
+export function TestimonialForm({ onSubmit, submitting, onValuesChange }: Props) {
   const {
     control,
     register,
@@ -48,6 +55,24 @@ export function TestimonialForm({ onSubmit, submitting }: Props) {
 
   const quotePt = useWatch({ control, name: "quote_pt" }) ?? "";
   const quoteEn = useWatch({ control, name: "quote_en" }) ?? "";
+  const nameValue = useWatch({ control, name: "name" }) ?? "";
+  const roleValue = useWatch({ control, name: "role" }) ?? "";
+  const affiliationValue = useWatch({ control, name: "affiliation" }) ?? "";
+
+  const onValuesChangeRef = useRef(onValuesChange);
+  useEffect(() => {
+    onValuesChangeRef.current = onValuesChange;
+  }, [onValuesChange]);
+
+  useEffect(() => {
+    onValuesChangeRef.current?.({
+      name: nameValue,
+      role: roleValue,
+      affiliation: affiliationValue,
+      quote_pt: quotePt,
+      quote_en: quoteEn,
+    });
+  }, [nameValue, roleValue, affiliationValue, quotePt, quoteEn]);
 
   function quoteHint(text: string): { label: string; tone: string } {
     const len = text.replace(/\s+/g, " ").trim().length;
