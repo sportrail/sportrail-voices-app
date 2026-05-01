@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Compare two strings in time proportional to the longer input, regardless of
+// where they first differ. Avoids leaking which byte mismatched via timing.
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  const len = Math.max(ab.length, bb.length);
+  let diff = ab.length ^ bb.length;
+  for (let i = 0; i < len; i++) {
+    diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 /**
  * Basic-auth gate for the entire app.
  *
@@ -42,7 +56,13 @@ export function middleware(req: NextRequest) {
   let username = "";
   let password = "";
   try {
-    const decoded = atob(header.slice(6));
+    // atob yields a binary string (1 char = 1 byte). Re-decode as UTF-8 so
+    // non-ASCII passwords match the original env value (we advertise
+    // charset="UTF-8" on the WWW-Authenticate header).
+    const binary = atob(header.slice(6));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const decoded = new TextDecoder("utf-8").decode(bytes);
     const sep = decoded.indexOf(":");
     if (sep === -1) throw new Error("malformed");
     username = decoded.slice(0, sep);
@@ -51,10 +71,9 @@ export function middleware(req: NextRequest) {
     return new NextResponse("Malformed credentials", { status: 400 });
   }
 
-  // Constant-time-ish comparison: avoid early return short-circuit
-  const userOk = username === expectedUsername;
-  const passOk = password === expectedPassword;
-  if (!userOk || !passOk) {
+  const userOk = timingSafeEqual(username, expectedUsername);
+  const passOk = timingSafeEqual(password, expectedPassword);
+  if (!(userOk && passOk)) {
     return new NextResponse("Invalid credentials", {
       status: 401,
       headers: {
