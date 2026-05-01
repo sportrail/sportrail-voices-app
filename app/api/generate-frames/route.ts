@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { renderHtmlToPng } from "@/lib/playwright";
+import { renderHtmlBatch } from "@/lib/playwright";
 import {
   FRAME_DIMENSIONS,
   buildFrameHtml,
@@ -107,10 +107,13 @@ export async function POST(request: NextRequest) {
       })),
     );
 
-    const buffers = await Promise.all(
-      renderJobs.map((job) =>
-        renderHtmlToPng(job.html, job.width, job.height, { transparent: true }),
-      ),
+    const buffers = await renderHtmlBatch(
+      renderJobs.map((job) => ({
+        html: job.html,
+        width: job.width,
+        height: job.height,
+        transparent: true,
+      })),
     );
 
     const frames: Record<string, GeneratedFrame> = {};
