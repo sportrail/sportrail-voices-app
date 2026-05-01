@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TestimonialForm } from "@/components/testimonial-form";
+import JSZip from "jszip";
 import {
   PreviewGrid,
   type GeneratedPosts,
@@ -12,7 +13,7 @@ import type { TestimonialFormValues } from "@/lib/validation";
 type State =
   | { kind: "idle" }
   | { kind: "submitting" }
-  | { kind: "success"; posts: GeneratedPosts }
+  | { kind: "success"; posts: GeneratedPosts; zipBlob: Blob; zipFilename: string }
   | { kind: "error"; message: string };
 
 type SharedTestimonial = {
@@ -51,7 +52,7 @@ export default function HomePage() {
     formData.append("photo", values.photo);
 
     try {
-      const response = await fetch("/api/generate", {
+      const response = await fetch("/api/generate?as=zip", {
         method: "POST",
         body: formData,
       });
@@ -64,8 +65,30 @@ export default function HomePage() {
         return;
       }
 
-      const data = (await response.json()) as { posts: GeneratedPosts };
-      setState({ kind: "success", posts: data.posts });
+      // Server returned application/zip with all 4 PNGs.
+      const zipBlob = await response.blob();
+      const manifestHeader = response.headers.get("X-Post-Manifest");
+      type ManifestEntry = { key: keyof GeneratedPosts; filename: string };
+      const manifest: ManifestEntry[] = manifestHeader
+        ? (JSON.parse(manifestHeader) as ManifestEntry[])
+        : [];
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const fnameMatch = disposition.match(/filename="?([^";]+)"?/);
+      const zipFilename = fnameMatch?.[1] ?? "Sportrail_Testemunho.zip";
+
+      const zip = await JSZip.loadAsync(zipBlob);
+      const partial: Partial<GeneratedPosts> = {};
+      for (const entry of manifest) {
+        const file = zip.file(entry.filename);
+        if (!file) continue;
+        const pngBlob = await file.async("blob");
+        const url = URL.createObjectURL(
+          new Blob([pngBlob], { type: "image/png" }),
+        );
+        partial[entry.key] = { filename: entry.filename, url };
+      }
+      const posts = partial as GeneratedPosts;
+      setState({ kind: "success", posts, zipBlob, zipFilename });
     } catch (error) {
       setState({
         kind: "error",
@@ -98,7 +121,12 @@ export default function HomePage() {
 
       <section className="rounded-sr bg-sr-black p-8 text-sr-cream shadow-lg md:p-10">
         {state.kind === "success" ? (
-          <PreviewGrid posts={state.posts} onReset={reset} />
+          <PreviewGrid
+            posts={state.posts}
+            zipBlob={state.zipBlob}
+            zipFilename={state.zipFilename}
+            onReset={reset}
+          />
         ) : (
           <>
             <TestimonialForm

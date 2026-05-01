@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { renderHtmlToPng } from "@/lib/playwright";
+import JSZip from "jszip";
+import { renderHtmlBatch } from "@/lib/playwright";
 import {
   FRAME_DIMENSIONS,
   buildFrameHtml,
@@ -9,6 +10,7 @@ import {
   type FrameKind,
 } from "@/lib/render-frame";
 import { frameRequestSchema } from "@/lib/frame-validation";
+import { slugify } from "@/lib/validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -34,16 +36,6 @@ function frameFilename(
 ): string {
   const variant = generic ? "generic" : slug;
   return `Sportrail_Frame_${kind}_${format}_${lang}_${variant}.png`;
-}
-
-function slugify(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
 }
 
 export async function POST(request: NextRequest) {
@@ -107,11 +99,38 @@ export async function POST(request: NextRequest) {
       })),
     );
 
-    const buffers = await Promise.all(
-      renderJobs.map((job) =>
-        renderHtmlToPng(job.html, job.width, job.height, { transparent: true }),
-      ),
+    const buffers = await renderHtmlBatch(
+      renderJobs.map((job) => ({
+        html: job.html,
+        width: job.width,
+        height: job.height,
+        transparent: true,
+      })),
     );
+
+    const wantZip = new URL(request.url).searchParams.get("as") === "zip";
+    if (wantZip) {
+      const zip = new JSZip();
+      renderJobs.forEach((job, idx) => {
+        zip.file(job.filename, buffers[idx]);
+      });
+      const zipBuffer = await zip.generateAsync({
+        type: "nodebuffer",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      });
+      return new NextResponse(zipBuffer as unknown as BodyInit, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/zip",
+          "Content-Disposition": "attachment; filename=\"Sportrail_Molduras.zip\"",
+          "Content-Length": String(zipBuffer.length),
+          "X-Frame-Manifest": JSON.stringify(
+            renderJobs.map((j) => ({ key: j.key, filename: j.filename })),
+          ),
+        },
+      });
+    }
 
     const frames: Record<string, GeneratedFrame> = {};
     renderJobs.forEach((job, idx) => {

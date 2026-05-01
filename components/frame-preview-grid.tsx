@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import JSZip from "jszip";
+import { useEffect, useState } from "react";
 
 export type GeneratedFrame = {
+  key: string;
   filename: string;
-  base64: string;
+  url: string; // object URL pointing at the PNG blob
 };
 
-export type GeneratedFrames = Record<string, GeneratedFrame>;
+export type GeneratedFrames = GeneratedFrame[];
 
 type Props = {
   frames: GeneratedFrames;
+  zipBlob: Blob;
   onReset: () => void;
 };
 
@@ -32,37 +33,34 @@ const KEY_LABEL: Record<string, string> = {
   C_9x16_en: "Moldura C · 9:16 · EN",
 };
 
-function downloadBase64(base64: string, filename: string) {
+function downloadUrl(url: string, filename: string) {
   const link = document.createElement("a");
-  link.href = `data:image/png;base64,${base64}`;
+  link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 }
 
-export function FramePreviewGrid({ frames, onReset }: Props) {
-  const [zipping, setZipping] = useState(false);
-  const entries = Object.entries(frames);
+export function FramePreviewGrid({ frames, zipBlob, onReset }: Props) {
+  const [downloading, setDownloading] = useState(false);
 
-  async function handleDownloadAll() {
-    setZipping(true);
+  // Cleanup all blob URLs on unmount or when frames change
+  useEffect(() => {
+    return () => {
+      frames.forEach((f) => URL.revokeObjectURL(f.url));
+    };
+  }, [frames]);
+
+  function handleDownloadAll() {
+    setDownloading(true);
     try {
-      const zip = new JSZip();
-      entries.forEach(([, frame]) => {
-        zip.file(frame.filename, frame.base64, { base64: true });
-      });
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "Sportrail_Molduras.zip";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(zipBlob);
+      downloadUrl(url, "Sportrail_Molduras.zip");
+      // Revoke after a tick so the browser had time to start the download
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } finally {
-      setZipping(false);
+      setDownloading(false);
     }
   }
 
@@ -83,10 +81,10 @@ export function FramePreviewGrid({ frames, onReset }: Props) {
           <button
             type="button"
             onClick={handleDownloadAll}
-            disabled={zipping}
+            disabled={downloading}
             className="rounded-sr bg-sr-red px-4 py-2 font-sans text-xs font-bold uppercase tracking-widest text-sr-cream hover:bg-sr-red-hover disabled:opacity-40"
           >
-            {zipping ? "A preparar ZIP…" : "Download all (ZIP)"}
+            {downloading ? "A preparar ZIP…" : "Download all (ZIP)"}
           </button>
         </div>
       </div>
@@ -98,18 +96,18 @@ export function FramePreviewGrid({ frames, onReset }: Props) {
       </p>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        {entries.map(([key, frame]) => (
+        {frames.map((frame) => (
           <figure
-            key={key}
+            key={frame.key}
             className="overflow-hidden rounded-sr border border-sr-border bg-sr-card"
           >
             <div className="flex items-center justify-between gap-2 border-b border-sr-border px-4 py-3">
               <figcaption className="font-sans text-xs font-bold uppercase tracking-widest text-sr-grey">
-                {KEY_LABEL[key] ?? key}
+                {KEY_LABEL[frame.key] ?? frame.key}
               </figcaption>
               <button
                 type="button"
-                onClick={() => downloadBase64(frame.base64, frame.filename)}
+                onClick={() => downloadUrl(frame.url, frame.filename)}
                 className="font-sans text-xs font-bold uppercase tracking-widest text-sr-red hover:text-sr-red-hover"
               >
                 Download
@@ -117,7 +115,7 @@ export function FramePreviewGrid({ frames, onReset }: Props) {
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`data:image/png;base64,${frame.base64}`}
+              src={frame.url}
               alt={frame.filename}
               className="block h-auto w-full"
               style={{

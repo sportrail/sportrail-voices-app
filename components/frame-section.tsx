@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import JSZip from "jszip";
 import {
   FramePreviewGrid,
+  type GeneratedFrame,
   type GeneratedFrames,
 } from "./frame-preview-grid";
 
@@ -12,7 +14,7 @@ type FrameFormat = "9x16" | "1x1" | "16x9";
 type State =
   | { kind: "idle" }
   | { kind: "submitting" }
-  | { kind: "success"; frames: GeneratedFrames }
+  | { kind: "success"; frames: GeneratedFrames; zipBlob: Blob }
   | { kind: "error"; message: string };
 
 type FrameTestimonialContent = {
@@ -121,7 +123,7 @@ export function FrameSection({ testimonial }: Props) {
   async function handleSubmit() {
     setState({ kind: "submitting" });
     try {
-      const response = await fetch("/api/generate-frames", {
+      const response = await fetch("/api/generate-frames?as=zip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -148,8 +150,25 @@ export function FrameSection({ testimonial }: Props) {
         return;
       }
 
-      const data = (await response.json()) as { frames: GeneratedFrames };
-      setState({ kind: "success", frames: data.frames });
+      // Server returned application/zip. Parse on client to build previews.
+      const zipBlob = await response.blob();
+      const manifestHeader = response.headers.get("X-Frame-Manifest");
+      type ManifestEntry = { key: string; filename: string };
+      const manifest: ManifestEntry[] = manifestHeader
+        ? (JSON.parse(manifestHeader) as ManifestEntry[])
+        : [];
+      const zip = await JSZip.loadAsync(zipBlob);
+      const frames: GeneratedFrame[] = [];
+      for (const entry of manifest) {
+        const file = zip.file(entry.filename);
+        if (!file) continue;
+        const pngBlob = await file.async("blob");
+        const url = URL.createObjectURL(
+          new Blob([pngBlob], { type: "image/png" }),
+        );
+        frames.push({ key: entry.key, filename: entry.filename, url });
+      }
+      setState({ kind: "success", frames, zipBlob });
     } catch (error) {
       setState({
         kind: "error",
@@ -165,6 +184,7 @@ export function FrameSection({ testimonial }: Props) {
     return (
       <FramePreviewGrid
         frames={state.frames}
+        zipBlob={state.zipBlob}
         onReset={() => setState({ kind: "idle" })}
       />
     );

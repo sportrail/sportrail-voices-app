@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { renderHtmlToPng } from "@/lib/playwright";
+import JSZip from "jszip";
+import { renderHtmlBatch } from "@/lib/playwright";
 import {
   buildHtml4x5,
   buildHtml9x16,
@@ -131,9 +132,37 @@ export async function POST(request: NextRequest) {
       },
     ] as const;
 
-    const buffers = await Promise.all(
-      renderJobs.map((job) => renderHtmlToPng(job.html, job.width, job.height)),
+    const buffers = await renderHtmlBatch(
+      renderJobs.map((job) => ({
+        html: job.html,
+        width: job.width,
+        height: job.height,
+      })),
     );
+
+    const wantZip = new URL(request.url).searchParams.get("as") === "zip";
+    if (wantZip) {
+      const zip = new JSZip();
+      renderJobs.forEach((job, idx) => {
+        zip.file(job.filename, buffers[idx]);
+      });
+      const zipBuffer = await zip.generateAsync({
+        type: "nodebuffer",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      });
+      return new NextResponse(zipBuffer as unknown as BodyInit, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename="Sportrail_Testemunho_${slug}.zip"`,
+          "Content-Length": String(zipBuffer.length),
+          "X-Post-Manifest": JSON.stringify(
+            renderJobs.map((j) => ({ key: j.key, filename: j.filename })),
+          ),
+        },
+      });
+    }
 
     const posts: Record<string, GeneratedPost> = {};
     renderJobs.forEach((job, idx) => {

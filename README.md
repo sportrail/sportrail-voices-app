@@ -35,6 +35,21 @@ npm run dev
 
 Para usar um Chromium custom local: `PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run dev`.
 
+## Autenticação
+
+A app vive numa URL pública na Vercel mas é só para uso interno. O middleware em
+`middleware.ts` activa Basic Auth automaticamente quando `APP_PASSWORD` está
+definido nas envs:
+
+```
+APP_PASSWORD=<shared-password>
+APP_USERNAME=<opcional, default "sportrail">
+```
+
+Sem `APP_PASSWORD`, o middleware é no-op (útil em desenvolvimento). Em produção,
+defina-o nas Project Settings → Environment Variables da Vercel.
+
+
 ## Deployment
 
 Vercel (plano Hobby). As funções `app/api/generate/route.ts` e

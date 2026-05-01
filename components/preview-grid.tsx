@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import JSZip from "jszip";
+import { useEffect, useState } from "react";
 
 export type GeneratedPost = {
   filename: string;
-  base64: string;
+  url: string; // object URL pointing at the PNG blob
 };
 
 export type GeneratedPosts = {
@@ -17,6 +16,8 @@ export type GeneratedPosts = {
 
 type Props = {
   posts: GeneratedPosts;
+  zipBlob: Blob;
+  zipFilename: string;
   onReset: () => void;
 };
 
@@ -27,38 +28,34 @@ const ORDER: Array<{ key: keyof GeneratedPosts; label: string }> = [
   { key: "en_9x16", label: "EN · 9:16 (story)" },
 ];
 
-function downloadBase64(base64: string, filename: string) {
+function downloadUrl(url: string, filename: string) {
   const link = document.createElement("a");
-  link.href = `data:image/png;base64,${base64}`;
+  link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 }
 
-export function PreviewGrid({ posts, onReset }: Props) {
-  const [zipping, setZipping] = useState(false);
+export function PreviewGrid({ posts, zipBlob, zipFilename, onReset }: Props) {
+  const [downloading, setDownloading] = useState(false);
 
-  async function handleDownloadAll() {
-    setZipping(true);
+  // Cleanup blob URLs on unmount or when posts change
+  useEffect(() => {
+    const urls = ORDER.map(({ key }) => posts[key].url);
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [posts]);
+
+  function handleDownloadAll() {
+    setDownloading(true);
     try {
-      const zip = new JSZip();
-      ORDER.forEach(({ key }) => {
-        const post = posts[key];
-        zip.file(post.filename, post.base64, { base64: true });
-      });
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const first = posts.pt_4x5.filename.replace(/_4x5_pt\.png$/, "");
-      link.download = `${first}_all.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(zipBlob);
+      downloadUrl(url, zipFilename);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } finally {
-      setZipping(false);
+      setDownloading(false);
     }
   }
 
@@ -79,10 +76,10 @@ export function PreviewGrid({ posts, onReset }: Props) {
           <button
             type="button"
             onClick={handleDownloadAll}
-            disabled={zipping}
+            disabled={downloading}
             className="rounded-sr bg-sr-red px-4 py-2 font-sans text-xs font-bold uppercase tracking-widest text-sr-cream hover:bg-sr-red-hover disabled:opacity-40"
           >
-            {zipping ? "A preparar ZIP…" : "Download all (ZIP)"}
+            {downloading ? "A preparar ZIP…" : "Download all (ZIP)"}
           </button>
         </div>
       </div>
@@ -101,7 +98,7 @@ export function PreviewGrid({ posts, onReset }: Props) {
                 </figcaption>
                 <button
                   type="button"
-                  onClick={() => downloadBase64(post.base64, post.filename)}
+                  onClick={() => downloadUrl(post.url, post.filename)}
                   className="font-sans text-xs font-bold uppercase tracking-widest text-sr-red hover:text-sr-red-hover"
                 >
                   Download
@@ -109,7 +106,7 @@ export function PreviewGrid({ posts, onReset }: Props) {
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`data:image/png;base64,${post.base64}`}
+                src={post.url}
                 alt={`${post.filename}`}
                 className="block h-auto w-full bg-sr-black"
               />
