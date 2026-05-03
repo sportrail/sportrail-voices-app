@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
-    "@sparticuz/chromium-min": "147.0.2",
+    "@sparticuz/chromium": "147.0.2",
     "jszip": "^3.10.1",
     "next": "^15.0.0",
     "playwright-core": "1.59.1",
