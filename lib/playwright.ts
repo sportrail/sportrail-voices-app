@@ -82,7 +82,16 @@ export async function renderHtmlBatch(jobs: RenderJob[]): Promise<Buffer[]> {
   if (jobs.length === 0) return [];
   const browser = await launchBrowser();
   try {
-    return await Promise.all(jobs.map((job) => renderJob(browser, job)));
+    // Run jobs sequentially. On Vercel Hobby (1024 MB) four parallel
+    // 1080x1920 contexts plus chromium overhead plus the JSZip buffer push us
+    // over the limit and the lambda dies with no specific error in the log
+    // table — just an opaque 500. One context at a time keeps peak memory at
+    // ~1/N and is still well within the 60s function budget.
+    const results: Buffer[] = [];
+    for (const job of jobs) {
+      results.push(await renderJob(browser, job));
+    }
+    return results;
   } finally {
     await browser.close();
   }
