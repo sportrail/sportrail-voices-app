@@ -29,6 +29,10 @@ async function launchBrowser(): Promise<Browser> {
   if (isServerless()) {
     ensureChromiumExtractionIsHealthy();
     const { default: chromium } = await import("@sparticuz/chromium");
+    // None of the templates use WebGL/canvas/SVG filters. Disabling the
+    // swiftshader graphics stack removes a chronic crash source under
+    // --single-process and trims ~5MB of inflate work per cold start.
+    chromium.setGraphicsMode = false;
     return playwrightChromium.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
