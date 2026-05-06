@@ -1,3 +1,6 @@
+import { existsSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { chromium as playwrightChromium } from "playwright-core";
 import type { Browser } from "playwright-core";
 
@@ -9,16 +12,23 @@ function isServerless(): boolean {
   );
 }
 
+// @sparticuz/chromium's executablePath() short-circuits as soon as
+// /tmp/chromium exists and does not re-verify that /tmp/al2023/lib is intact.
+// Warm Vercel invocations where the binary persisted but the libs were evicted
+// then launch chromium with LD_LIBRARY_PATH pointing at a missing dir, which
+// surfaces as "error while loading shared libraries: libnss3.so". Detect the
+// half-extracted state and force a clean re-inflate.
+function ensureChromiumExtractionIsHealthy(): void {
+  const tmp = tmpdir();
+  if (existsSync(join(tmp, "al2023", "lib", "libnss3.so"))) return;
+  rmSync(join(tmp, "chromium"), { force: true });
+  rmSync(join(tmp, "al2023"), { recursive: true, force: true });
+}
+
 async function launchBrowser(): Promise<Browser> {
   if (isServerless()) {
-    // @sparticuz/chromium (full) bundles the chromium binary AND its required
-    // shared libraries (libnss3.so etc.) inside node_modules. The previous
-    // -min variant downloaded a remote pack and extracted to /tmp at runtime,
-    // which intermittently left the libs missing on Vercel and produced
-    // "error while loading shared libraries: libnss3.so". Switching to the
-    // full package eliminates the /tmp extraction race entirely.
-    const chromiumModule = await import("@sparticuz/chromium");
-    const chromium = chromiumModule.default;
+    ensureChromiumExtractionIsHealthy();
+    const { default: chromium } = await import("@sparticuz/chromium");
     return playwrightChromium.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
@@ -28,16 +38,14 @@ async function launchBrowser(): Promise<Browser> {
 
   const localExecutable =
     process.env.PLAYWRIGHT_CHROMIUM_PATH || process.env.CHROME_PATH;
-  return playwrightChromium.launch({
-    headless: true,
-    ...(localExecutable ? { executablePath: localExecutable } : {}),
-    channel: localExecutable ? undefined : "chrome",
-  });
+  if (localExecutable) {
+    return playwrightChromium.launch({
+      headless: true,
+      executablePath: localExecutable,
+    });
+  }
+  return playwrightChromium.launch({ headless: true, channel: "chrome" });
 }
-
-export type RenderHtmlOptions = {
-  transparent?: boolean;
-};
 
 export type RenderJob = {
   html: string;
@@ -46,50 +54,27 @@ export type RenderJob = {
   transparent?: boolean;
 };
 
-const SET_CONTENT_TIMEOUT_MS = 20_000;
-
-async function renderJob(
-  browser: Browser,
-  job: RenderJob,
-): Promise<Buffer> {
+async function renderJob(browser: Browser, job: RenderJob): Promise<Buffer> {
   const context = await browser.newContext({
     viewport: { width: job.width, height: job.height },
     deviceScaleFactor: 1,
   });
   const page = await context.newPage();
   try {
-    await page.setContent(job.html, {
-      waitUntil: "networkidle",
-      timeout: SET_CONTENT_TIMEOUT_MS,
-    });
-    // Wait for fonts to be ready (more deterministic than fixed timeout)
+    await page.setContent(job.html, { waitUntil: "load", timeout: 20_000 });
     await page
-      .evaluate(
-        () =>
-          (document as unknown as { fonts?: { ready?: Promise<unknown> } })
-            .fonts?.ready,
-      )
+      .evaluate(() => document.fonts.ready)
       .catch(() => undefined);
     return await page.screenshot({
       fullPage: false,
-      omitBackground: job.transparent === true,
+      omitBackground: job.transparent ?? false,
     });
   } finally {
     await context.close();
   }
 }
 
-/**
- * Render multiple HTML jobs to PNG buffers using a SINGLE shared browser.
- * Each job gets its own context + page so viewports don't conflict.
- *
- * This replaces the previous pattern of `Promise.all(jobs.map(renderHtmlToPng))`
- * which launched one browser per job — six parallel chromium-min instances
- * would OOM on Vercel and contend for /tmp during the chromium pack unpack.
- */
-export async function renderHtmlBatch(
-  jobs: RenderJob[],
-): Promise<Buffer[]> {
+export async function renderHtmlBatch(jobs: RenderJob[]): Promise<Buffer[]> {
   if (jobs.length === 0) return [];
   const browser = await launchBrowser();
   try {
@@ -97,20 +82,4 @@ export async function renderHtmlBatch(
   } finally {
     await browser.close();
   }
-}
-
-/**
- * Render a single HTML to PNG. Kept for backward compatibility.
- * Prefer `renderHtmlBatch` when rendering more than one image.
- */
-export async function renderHtmlToPng(
-  html: string,
-  width: number,
-  height: number,
-  options: RenderHtmlOptions = {},
-): Promise<Buffer> {
-  const [buffer] = await renderHtmlBatch([
-    { html, width, height, transparent: options.transparent },
-  ]);
-  return buffer;
 }
