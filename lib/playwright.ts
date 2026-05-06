@@ -25,16 +25,33 @@ function ensureChromiumExtractionIsHealthy(): void {
   rmSync(join(tmp, "al2023"), { recursive: true, force: true });
 }
 
+// Strip every GPU/swiftshader-related flag from the args sparticuz returns.
+// `chromium.setGraphicsMode = false` was supposed to do this but in v147 the
+// launched Chromium still receives --enable-unsafe-swiftshader and friends,
+// and under --single-process the renderer crashes mid-render with
+// "Target page, context or browser has been closed". We render plain HTML
+// with no canvas/WebGL/SVG-filters, so the entire GPU stack is dead weight.
+function stripGpuArgs(args: string[]): string[] {
+  const banned = [
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    "--in-process-gpu",
+    "--use-gl=swiftshader",
+    "--use-angle=swiftshader",
+  ];
+  const cleaned = args.filter((a) => !banned.some((b) => a.startsWith(b)));
+  // Force GPU off, even if a future sparticuz release adds new flags.
+  if (!cleaned.includes("--disable-gpu")) cleaned.push("--disable-gpu");
+  return cleaned;
+}
+
 async function launchBrowser(): Promise<Browser> {
   if (isServerless()) {
     ensureChromiumExtractionIsHealthy();
     const { default: chromium } = await import("@sparticuz/chromium");
-    // None of the templates use WebGL/canvas/SVG filters. Disabling the
-    // swiftshader graphics stack removes a chronic crash source under
-    // --single-process and trims ~5MB of inflate work per cold start.
     chromium.setGraphicsMode = false;
     return playwrightChromium.launch({
-      args: chromium.args,
+      args: stripGpuArgs(chromium.args),
       executablePath: await chromium.executablePath(),
       headless: true,
     });
@@ -58,41 +75,42 @@ export type RenderJob = {
   transparent?: boolean;
 };
 
-async function renderJob(browser: Browser, job: RenderJob): Promise<Buffer> {
-  const context = await browser.newContext({
-    viewport: { width: job.width, height: job.height },
-    deviceScaleFactor: 1,
-  });
-  const page = await context.newPage();
+async function renderOne(job: RenderJob): Promise<Buffer> {
+  // Fresh browser per job. Single-process Chromium on Lambda has been
+  // crashing the renderer between jobs (the second `newPage` throws
+  // "Target page, context or browser has been closed"). Starting clean
+  // for each job isolates a crash to that one render and trades ~1-2s of
+  // launch time for reliability — the binary is already extracted in /tmp
+  // so subsequent launches are warm.
+  const browser = await launchBrowser();
   try {
-    await page.setContent(job.html, { waitUntil: "load", timeout: 20_000 });
-    await page
-      .evaluate(() => document.fonts.ready)
-      .catch(() => undefined);
-    return await page.screenshot({
-      fullPage: false,
-      omitBackground: job.transparent ?? false,
+    const context = await browser.newContext({
+      viewport: { width: job.width, height: job.height },
+      deviceScaleFactor: 1,
     });
+    try {
+      const page = await context.newPage();
+      await page.setContent(job.html, { waitUntil: "load", timeout: 20_000 });
+      await page
+        .evaluate(() => document.fonts.ready)
+        .catch(() => undefined);
+      return await page.screenshot({
+        fullPage: false,
+        omitBackground: job.transparent ?? false,
+      });
+    } finally {
+      await context.close().catch(() => undefined);
+    }
   } finally {
-    await context.close();
+    await browser.close().catch(() => undefined);
   }
 }
 
 export async function renderHtmlBatch(jobs: RenderJob[]): Promise<Buffer[]> {
   if (jobs.length === 0) return [];
-  const browser = await launchBrowser();
-  try {
-    // Run jobs sequentially. On Vercel Hobby (1024 MB) four parallel
-    // 1080x1920 contexts plus chromium overhead plus the JSZip buffer push us
-    // over the limit and the lambda dies with no specific error in the log
-    // table — just an opaque 500. One context at a time keeps peak memory at
-    // ~1/N and is still well within the 60s function budget.
-    const results: Buffer[] = [];
-    for (const job of jobs) {
-      results.push(await renderJob(browser, job));
-    }
-    return results;
-  } finally {
-    await browser.close();
+  const results: Buffer[] = [];
+  for (const job of jobs) {
+    results.push(await renderOne(job));
   }
+  return results;
 }
