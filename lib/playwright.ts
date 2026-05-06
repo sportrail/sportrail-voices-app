@@ -86,7 +86,12 @@ async function renderOne(job: RenderJob): Promise<Buffer> {
   try {
     const context = await browser.newContext({
       viewport: { width: job.width, height: job.height },
-      deviceScaleFactor: 1,
+      // Render at 2x so a 1080x1920 frame outputs at 2160x3840 pixels.
+      // Editors like Clideo/CapCut/Veed re-sample the overlay during preview
+      // and export; at 1x the small text in the footer band turns soft.
+      // Memory cost is contained because we already launch a fresh browser
+      // per job (no parallel contexts), so peak is one 2x backing buffer.
+      deviceScaleFactor: 2,
     });
     try {
       const page = await context.newPage();
