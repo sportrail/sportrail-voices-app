@@ -223,12 +223,11 @@ ${FONTS_INLINE_STYLE}
 }
 
 type FrameBGeometry = {
-  bandTop: number;
   nameBand: number;
   logoBand: number;
   paddingX: number;
-  labelSize: number;
-  labelLetter: number;
+  tagSize: number;
+  tagLetter: number;
   nameSize: number;
   roleSize: number;
   logoWidth: number;
@@ -238,12 +237,11 @@ type FrameBGeometry = {
 
 const FRAME_B_GEOM: Record<FrameFormat, FrameBGeometry> = {
   "9x16": {
-    bandTop: 110,
-    nameBand: 180,
+    nameBand: 210,
     logoBand: 150,
     paddingX: 80,
-    labelSize: 20,
-    labelLetter: 6,
+    tagSize: 18,
+    tagLetter: 5,
     nameSize: 56,
     roleSize: 22,
     logoWidth: 260,
@@ -251,12 +249,11 @@ const FRAME_B_GEOM: Record<FrameFormat, FrameBGeometry> = {
     anniversaryLetter: 3,
   },
   "1x1": {
-    bandTop: 90,
-    nameBand: 140,
+    nameBand: 170,
     logoBand: 120,
     paddingX: 70,
-    labelSize: 18,
-    labelLetter: 5,
+    tagSize: 16,
+    tagLetter: 4,
     nameSize: 44,
     roleSize: 18,
     logoWidth: 220,
@@ -264,12 +261,11 @@ const FRAME_B_GEOM: Record<FrameFormat, FrameBGeometry> = {
     anniversaryLetter: 3,
   },
   "16x9": {
-    bandTop: 80,
-    nameBand: 130,
+    nameBand: 160,
     logoBand: 110,
     paddingX: 100,
-    labelSize: 18,
-    labelLetter: 5,
+    tagSize: 16,
+    tagLetter: 4,
     nameSize: 44,
     roleSize: 18,
     logoWidth: 220,
@@ -281,7 +277,7 @@ const FRAME_B_GEOM: Record<FrameFormat, FrameBGeometry> = {
 function buildFrameB(args: FrameBuildArgs): string {
   const { width, height } = FRAME_DIMENSIONS[args.format];
   const g = FRAME_B_GEOM[args.format];
-  const labelTop = escapeHtml(LABEL_TOP_LONG[args.language]);
+  const tagLabel = escapeHtml(LABEL_TOP[args.language]);
   const labelBottom = escapeHtml(LABEL_BOTTOM[args.language]);
 
   const name = args.generic
@@ -307,26 +303,6 @@ ${FONTS_INLINE_STYLE}
     height: ${height}px;
     position: relative;
   }
-  .band-top {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: ${g.bandTop}px;
-    background: #0B0A0F;
-    border-bottom: 3px solid #ED1C24;
-    display: flex;
-    align-items: center;
-    padding: 0 ${g.paddingX}px;
-  }
-  .label-top {
-    font-family: 'DM Sans', sans-serif;
-    font-size: ${g.labelSize}px;
-    font-weight: 700;
-    letter-spacing: ${g.labelLetter}px;
-    color: #FAF8F5;
-    text-transform: uppercase;
-  }
   .name-band {
     position: absolute;
     left: 0;
@@ -339,6 +315,15 @@ ${FONTS_INLINE_STYLE}
     flex-direction: column;
     justify-content: center;
     border-left: 6px solid #ED1C24;
+  }
+  .tag {
+    font-family: 'DM Sans', sans-serif;
+    font-size: ${g.tagSize}px;
+    font-weight: 700;
+    letter-spacing: ${g.tagLetter}px;
+    color: #ED1C24;
+    text-transform: uppercase;
+    margin-bottom: 14px;
   }
   .name {
     font-family: 'Bebas Neue', sans-serif;
@@ -384,10 +369,8 @@ ${FONTS_INLINE_STYLE}
 </head>
 <body>
   <div class="frame">
-    <div class="band-top">
-      <div class="label-top">${labelTop}</div>
-    </div>
     <div class="name-band">
+      <div class="tag">${tagLabel}</div>
       <div class="name">${name}</div>
       <div class="role">${role}${affiliation ? ` &middot; ${affiliation}` : ""}</div>
     </div>
