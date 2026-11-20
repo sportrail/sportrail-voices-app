@@ -1,8 +1,12 @@
 # Integração — chamar o Sportrail Voices a partir do Sportrail-dashboard
 
 Este documento é o **contrato HTTP** da app Sportrail Voices. O dashboard
-(seja qual for a linguagem) integra-se chamando estes endpoints por HTTP.
-Não é preciso copiar código JavaScript — a app gera os PNGs e devolve-os.
+(Next.js na Vercel, `dashboard.sportrail.pt`) chama estes endpoints a partir
+do servidor (route handlers), nunca do browser: assim as credenciais ficam no
+servidor e não há CORS. A Voices gera os PNG e devolve-os.
+
+A montagem de vídeo com estas molduras está descrita em
+[`dashboard-video-montage.md`](./dashboard-video-montage.md).
 
 - **Base URL (produção):** `https://sportrail-voices-app.vercel.app`
 - **Runtime:** serverless, `maxDuration` 60 s. Os renders correm em
@@ -14,7 +18,8 @@ Não é preciso copiar código JavaScript — a app gera os PNGs e devolve-os.
 ## Autenticação
 
 A app tem um gate de **HTTP Basic Auth** activado quando a env var
-`APP_PASSWORD` está definida no Vercel (está, em produção).
+`APP_PASSWORD` está definida no projeto Vercel `sportrail-voices-app`.
+Confirma com o Bruno se está definida e quais são as credenciais.
 
 - Username: valor de `APP_USERNAME` (default `sportrail`)
 - Password: valor de `APP_PASSWORD`
@@ -33,6 +38,11 @@ preciso.)
 
 Gera 4 PNGs opacos (post pronto a publicar): PT 4:5, PT 9:16, EN 4:5,
 EN 9:16.
+
+> **Limitação conhecida:** desde que os renders passaram a 2× (PR #12), o
+> ZIP com os 4 posts e uma foto real pode passar os 4,5 MB que a Vercel
+> aceita por resposta, e o pedido falha. Não integres este endpoint no
+> dashboard até isto estar corrigido na Voices.
 
 ### Pedido
 
@@ -86,8 +96,23 @@ Duas formas, escolhidas pela query string:
 
 `POST /api/generate-frames`
 
-Gera PNGs **transparentes** (overlay para sobrepor a vídeo no editor).
-Para cada formato pedido gera sempre versão **PT e EN**.
+Gera PNGs **transparentes** para sobrepor ao vídeo, renderizados a 2×.
+Para cada formato pedido gera sempre a versão **PT e EN**.
+
+> Este contrato entra com o PR #16 da Voices. Antes disso a API ainda
+> espera os campos antigos (`generic`, quotes).
+
+| `moldura` | Desenho |
+| --- | --- |
+| `"A"` | Cinematic: gradiente suave, filete vermelho, nome em baixo à esquerda |
+| `"B"` | Editorial: contorno fino, bloco centrado, tag "Testemunho · 10 Anos" |
+| `"C"` | Glass card: cartão translúcido com barra vermelha |
+
+| `formato` | PNG devolvido |
+| --- | --- |
+| `"9x16"` | 2160×3840 |
+| `"1x1"` | 2160×2160 |
+| `"16x9"` | 3840×2160 |
 
 ### Pedido
 
@@ -98,30 +123,24 @@ Para cada formato pedido gera sempre versão **PT e EN**.
   "testemunho": {
     "name": "João Silva",
     "role": "Sports Director",
-    "affiliation": "Alliance FC",
-    "quote_pt": "...",
-    "quote_en": "..."
+    "affiliation": "Alliance FC"
   },
   "selecoes": {
     "moldura": "A",
-    "formatos": ["9x16", "1x1", "16x9"],
-    "generic": false
+    "formatos": ["9x16"]
   }
 }
 ```
 
 Regras de validação:
 
-- `moldura`: `"A"` | `"B"` | `"C"`
-- `formatos`: array não vazio de `"9x16"` | `"1x1"` | `"16x9"`
-- `generic`: boolean
-- **Moldura C só existe em `9x16`** — pedir C com `1x1`/`16x9` → `400`
-- **Moldura A é sempre genérica** — o flag `generic` é ignorado (forçado a `true`)
-- Se `generic=false` e `moldura="B"` → `testemunho.name` e `testemunho.role` obrigatórios
-- Se `generic=false` e `moldura="C"` → pelo menos um de `quote_pt`/`quote_en`
-- Limites de texto: `name` ≤ 60, `role` ≤ 80, `affiliation` ≤ 80,
-  `quote_pt`/`quote_en` ≤ 250. Todos os campos de `testemunho` são
-  opcionais (default `""`).
+- `moldura`: `"A"` | `"B"` | `"C"`. As três existem nos três formatos.
+- `formatos`: array não vazio de `"9x16"` | `"1x1"` | `"16x9"`.
+- `testemunho.name`: obrigatório, 2 a 60 caracteres.
+- `testemunho.role`: obrigatório, 2 a 80 caracteres.
+- `testemunho.affiliation`: opcional, até 80 caracteres. Aparece como
+  "função · organização".
+- Campos a mais (por exemplo `generic` de clientes antigos) são ignorados.
 
 ### Resposta
 
@@ -135,14 +154,17 @@ Regras de validação:
 ```json
 {
   "frames": {
-    "A_9x16_pt": { "filename": "Sportrail_Frame_A_9x16_pt_generic.png", "base64": "..." },
+    "A_9x16_pt": { "filename": "Sportrail_Frame_A_9x16_pt_joao_silva.png", "base64": "..." },
     "A_9x16_en": { "filename": "...", "base64": "..." }
   }
 }
 ```
 
-Formato da `key`: `<moldura>_<formato>_<lang>` →
-ex. `B_1x1_en`, `C_9x16_pt`.
+Formato da `key`: `<moldura>_<formato>_<lang>`, por exemplo `B_1x1_en` ou
+`C_9x16_pt`.
+
+Para a montagem de vídeo no dashboard usa a resposta JSON: pede um só
+formato e fica com a `key` da língua escolhida.
 
 ---
 
@@ -169,7 +191,7 @@ curl -u "sportrail:$APP_PASSWORD" \
   -H "Content-Type: application/json" \
   -d '{
         "testemunho": { "name": "João Silva", "role": "Sports Director", "affiliation": "Alliance FC" },
-        "selecoes": { "moldura": "B", "formatos": ["9x16"], "generic": false }
+        "selecoes": { "moldura": "B", "formatos": ["9x16"] }
       }' \
   --output Sportrail_Molduras.zip
 ```
@@ -190,39 +212,34 @@ curl -u "sportrail:$APP_PASSWORD" \
   --output Sportrail_Testemunho.zip
 ```
 
-Exemplo equivalente em Python (qualquer backend não-JS faz o mesmo):
+No dashboard (route handler Next.js), pedindo uma só moldura em JSON:
 
-```python
-import requests
-
-r = requests.post(
-    "https://sportrail-voices-app.vercel.app/api/generate-frames?as=zip",
-    auth=("sportrail", APP_PASSWORD),
-    json={
-        "testemunho": {"name": "João Silva", "role": "Sports Director",
-                        "affiliation": "Alliance FC"},
-        "selecoes": {"moldura": "B", "formatos": ["9x16"], "generic": False},
-    },
-    timeout=90,
-)
-r.raise_for_status()
-open("Sportrail_Molduras.zip", "wb").write(r.content)
+```ts
+const auth = Buffer.from(`${process.env.VOICES_USERNAME}:${process.env.VOICES_PASSWORD}`).toString("base64");
+const res = await fetch(`${process.env.VOICES_URL}/api/generate-frames`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", Authorization: `Basic ${auth}` },
+  body: JSON.stringify({
+    testemunho: { name: "João Silva", role: "Sports Director", affiliation: "Alliance FC" },
+    selecoes: { moldura: "B", formatos: ["9x16"] },
+  }),
+  signal: AbortSignal.timeout(60_000),
+});
+const { frames } = await res.json();
+const png = Buffer.from(frames["B_9x16_pt"].base64, "base64");
 ```
 
 ---
 
 ## Notas de integração
 
-- **Usa sempre `?as=zip`.** Evita os JSON gigantes em base64 e dá o
-  ficheiro pronto a guardar/servir.
+- **`?as=zip` quando queres vários ficheiros** para guardar; **JSON
+  quando queres um PNG** para usar logo (caso da montagem de vídeo).
 - **Timeout ≥ 60 s** no cliente (render serverless é sequencial).
 - A app não processa vídeo nem guarda estado — cada pedido é
   independente. O dashboard pode chamar on-demand e cachear o ZIP do
   seu lado se quiser.
 - Se quiseres servir as imagens individuais a partir do dashboard,
   abre o ZIP e usa os nomes do `X-Post-Manifest` / `X-Frame-Manifest`.
-- CORS: hoje os endpoints são chamados same-origin pela própria app. Se
-  o dashboard chamar do **browser** (cross-origin) é preciso adicionar
-  headers CORS na app Voices — diz se for esse o caso. Se a chamada for
-  **server-to-server** (backend do dashboard → Voices) não há problema
-  de CORS.
+- **Sempre a partir do servidor do dashboard.** A Voices não tem CORS
+  para outros domínios e as credenciais Basic não podem ir para o browser.
