@@ -36,13 +36,14 @@ preciso.)
 
 `POST /api/generate`
 
-Gera 4 PNGs opacos (post pronto a publicar): PT 4:5, PT 9:16, EN 4:5,
-EN 9:16.
+Gera 4 JPEG prontos a publicar, a 1080 px de largura: PT 4:5 (1080×1350),
+PT 9:16 (1080×1920), EN 4:5 e EN 9:16. O ZIP com os quatro fica perto de
+0,8 MB.
 
-> **Limitação conhecida:** desde que os renders passaram a 2× (PR #12), o
-> ZIP com os 4 posts e uma foto real pode passar os 4,5 MB que a Vercel
-> aceita por resposta, e o pedido falha. Não integres este endpoint no
-> dashboard até isto estar corrigido na Voices.
+> **Depende do PR #17 da Voices.** Antes dele os posts saíam em PNG a 2× e
+> o ZIP passava os 4,5 MB que a Vercel aceita por resposta. O mesmo limite
+> vale para o pedido: reduz a foto antes de a enviar (o gerador da Voices
+> usa 2160 px no lado maior, JPEG 0,9).
 
 ### Pedido
 

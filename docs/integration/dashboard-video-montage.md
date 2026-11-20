@@ -277,8 +277,8 @@ Passos da página:
 - Cortar ou editar o vídeo, legendas, música.
 - Qualquer processamento ou armazenamento de vídeo em servidor (Cloud Run,
   buckets).
-- Posts estáticos (`/api/generate` da Voices), até a Voices resolver o limite
-  de 4,5 MB por resposta.
+- Posts estáticos (`/api/generate` da Voices). Ficam para uma fase seguinte,
+  já com o PR #17 da Voices (posts em JPEG a 1080 px).
 - Telemóvel.
 
 ## Testes de aceitação
