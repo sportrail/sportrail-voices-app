@@ -107,7 +107,7 @@ type CinematicGeometry = {
 };
 
 const CINEMATIC: Record<FrameFormat, CinematicGeometry> = {
-  "9x16": { topScrim: 300, bottomScrim: 820, side: 64, logoTop: 64, logoHeight: 52, tagTop: 80, tagSize: 20, tagTracking: 7, blockBottom: 350, blockMaxWidth: 952, ruleWidth: 72, ruleGap: 28, name: 132, role: 38, roleGap: 14 },
+  "9x16": { topScrim: 300, bottomScrim: 820, side: 64, logoTop: 64, logoHeight: 52, tagTop: 80, tagSize: 20, tagTracking: 7, blockBottom: 300, blockMaxWidth: 952, ruleWidth: 72, ruleGap: 28, name: 132, role: 38, roleGap: 14 },
   "1x1": { topScrim: 240, bottomScrim: 540, side: 64, logoTop: 56, logoHeight: 50, tagTop: 70, tagSize: 18, tagTracking: 6, blockBottom: 72, blockMaxWidth: 952, ruleWidth: 64, ruleGap: 24, name: 112, role: 34, roleGap: 12 },
   "16x9": { topScrim: 220, bottomScrim: 520, side: 96, logoTop: 64, logoHeight: 52, tagTop: 80, tagSize: 20, tagTracking: 7, blockBottom: 88, blockMaxWidth: 1200, ruleWidth: 72, ruleGap: 26, name: 120, role: 36, roleGap: 12 },
 };
@@ -150,7 +150,7 @@ type EditorialGeometry = {
 };
 
 const EDITORIAL: Record<FrameFormat, EditorialGeometry> = {
-  "9x16": { bottomScrim: 900, inset: 36, logoTop: 84, logoHeight: 50, blockBottom: 350, blockPadding: 80, tagSize: 21, tagTracking: 7, tagGap: 22, name: 120, role: 36, roleGap: 12 },
+  "9x16": { bottomScrim: 900, inset: 36, logoTop: 84, logoHeight: 50, blockBottom: 290, blockPadding: 80, tagSize: 21, tagTracking: 7, tagGap: 22, name: 120, role: 36, roleGap: 12 },
   "1x1": { bottomScrim: 600, inset: 32, logoTop: 72, logoHeight: 50, blockBottom: 96, blockPadding: 80, tagSize: 19, tagTracking: 6, tagGap: 18, name: 104, role: 32, roleGap: 10 },
   "16x9": { bottomScrim: 560, inset: 36, logoTop: 76, logoHeight: 50, blockBottom: 100, blockPadding: 200, tagSize: 20, tagTracking: 7, tagGap: 20, name: 112, role: 34, roleGap: 12 },
 };
@@ -198,7 +198,7 @@ type GlassGeometry = {
 };
 
 const GLASS: Record<FrameFormat, GlassGeometry> = {
-  "9x16": { topScrim: 260, side: 64, logoTop: 64, logoHeight: 50, tagTop: 79, tagSize: 20, tagTracking: 7, cardLeft: 56, cardRight: 56, cardMaxWidth: 968, cardMinWidth: 0, cardBottom: 350, padding: [38, 44, 40], radius: 28, gap: 36, name: 104, role: 34, roleGap: 10 },
+  "9x16": { topScrim: 260, side: 64, logoTop: 64, logoHeight: 50, tagTop: 79, tagSize: 20, tagTracking: 7, cardLeft: 56, cardRight: 56, cardMaxWidth: 968, cardMinWidth: 0, cardBottom: 290, padding: [38, 44, 40], radius: 28, gap: 36, name: 104, role: 34, roleGap: 10 },
   "1x1": { topScrim: 220, side: 64, logoTop: 56, logoHeight: 50, tagTop: 69, tagSize: 18, tagTracking: 6, cardLeft: 56, cardRight: 56, cardMaxWidth: 968, cardMinWidth: 0, cardBottom: 64, padding: [32, 40, 34], radius: 26, gap: 30, name: 92, role: 30, roleGap: 8 },
   "16x9": { topScrim: 220, side: 96, logoTop: 64, logoHeight: 50, tagTop: 79, tagSize: 20, tagTracking: 7, cardLeft: 88, cardRight: null, cardMaxWidth: 1100, cardMinWidth: 560, cardBottom: 80, padding: [34, 44, 36], radius: 28, gap: 32, name: 96, role: 32, roleGap: 8 },
 };
