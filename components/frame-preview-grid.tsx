@@ -16,22 +16,18 @@ type Props = {
   onReset: () => void;
 };
 
-const KEY_LABEL: Record<string, string> = {
-  A_9x16_pt: "Moldura A · 9:16 · PT",
-  A_9x16_en: "Moldura A · 9:16 · EN",
-  A_1x1_pt: "Moldura A · 1:1 · PT",
-  A_1x1_en: "Moldura A · 1:1 · EN",
-  A_16x9_pt: "Moldura A · 16:9 · PT",
-  A_16x9_en: "Moldura A · 16:9 · EN",
-  B_9x16_pt: "Moldura B · 9:16 · PT",
-  B_9x16_en: "Moldura B · 9:16 · EN",
-  B_1x1_pt: "Moldura B · 1:1 · PT",
-  B_1x1_en: "Moldura B · 1:1 · EN",
-  B_16x9_pt: "Moldura B · 16:9 · PT",
-  B_16x9_en: "Moldura B · 16:9 · EN",
-  C_9x16_pt: "Moldura C · 9:16 · PT",
-  C_9x16_en: "Moldura C · 9:16 · EN",
+const DESIGN_LABEL: Record<string, string> = {
+  A: "Cinematic",
+  B: "Editorial",
+  C: "Glass card",
 };
+
+function frameLabel(key: string): string {
+  const [kind, format, lang] = key.split("_");
+  const design = DESIGN_LABEL[kind];
+  if (!design || !format || !lang) return key;
+  return `${design} · ${format.replace("x", ":")} · ${lang.toUpperCase()}`;
+}
 
 function downloadUrl(url: string, filename: string) {
   const link = document.createElement("a");
@@ -103,7 +99,7 @@ export function FramePreviewGrid({ frames, zipBlob, onReset }: Props) {
           >
             <div className="flex items-center justify-between gap-2 border-b border-sr-border px-4 py-3">
               <figcaption className="font-sans text-xs font-bold uppercase tracking-widest text-sr-grey">
-                {KEY_LABEL[frame.key] ?? frame.key}
+                {frameLabel(frame.key)}
               </figcaption>
               <button
                 type="button"

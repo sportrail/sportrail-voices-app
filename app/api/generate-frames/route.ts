@@ -31,11 +31,9 @@ function frameFilename(
   kind: FrameKind,
   format: FrameFormat,
   lang: Lang,
-  generic: boolean,
   slug: string,
 ): string {
-  const variant = generic ? "generic" : slug;
-  return `Sportrail_Frame_${kind}_${format}_${lang}_${variant}.png`;
+  return `Sportrail_Frame_${kind}_${format}_${lang}_${slug}.png`;
 }
 
 export async function POST(request: NextRequest) {
@@ -61,9 +59,6 @@ export async function POST(request: NextRequest) {
     }
     const { testemunho, selecoes } = parsed.data;
 
-    // Frame A is always generic regardless of the flag
-    const generic = selecoes.moldura === "A" ? true : selecoes.generic;
-
     const logoPath = path.join(
       process.cwd(),
       "public",
@@ -73,24 +68,15 @@ export async function POST(request: NextRequest) {
     const logoBuffer = await readFile(logoPath);
     const logoB64 = `data:image/png;base64,${logoBuffer.toString("base64")}`;
 
-    const slug = generic
-      ? "generic"
-      : slugify(testemunho.name ?? "") || "testemunho";
+    const slug = slugify(testemunho.name) || "testemunho";
 
     const renderJobs = selecoes.formatos.flatMap((format) =>
       LANGS.map((lang) => ({
         key: frameKey(selecoes.moldura, format, lang),
-        filename: frameFilename(
-          selecoes.moldura,
-          format,
-          lang,
-          generic,
-          slug,
-        ),
+        filename: frameFilename(selecoes.moldura, format, lang, slug),
         html: buildFrameHtml({
           kind: selecoes.moldura,
           format,
-          generic,
           content: testemunho,
           language: lang,
           logoB64,

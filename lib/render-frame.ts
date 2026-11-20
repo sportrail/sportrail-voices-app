@@ -2,6 +2,7 @@ import { FONTS_INLINE_STYLE } from "./fonts-inline";
 
 export type FrameKind = "A" | "B" | "C";
 export type FrameFormat = "9x16" | "1x1" | "16x9";
+export type FrameLanguage = "pt" | "en";
 
 export type FrameDimensions = { width: number; height: number };
 
@@ -12,44 +13,31 @@ export const FRAME_DIMENSIONS: Record<FrameFormat, FrameDimensions> = {
 };
 
 export type FrameContent = {
-  name?: string;
-  role?: string;
+  name: string;
+  role: string;
   affiliation?: string;
-  quote_pt?: string;
-  quote_en?: string;
 };
 
 export type FrameBuildArgs = {
   kind: FrameKind;
   format: FrameFormat;
-  generic: boolean;
+  language: FrameLanguage;
   content: FrameContent;
-  language: "pt" | "en";
   logoB64: string;
 };
 
-const PLACEHOLDER_NAME = "— NOME —";
-const PLACEHOLDER_ROLE = "— FUNÇÃO —";
-const PLACEHOLDER_AFFILIATION = "— ORGANIZAÇÃO —";
-const PLACEHOLDER_QUOTE_PT =
-  "— A frase do testemunho aparece aqui quando preencheres o formulário. —";
-const PLACEHOLDER_QUOTE_EN =
-  "— The testimonial quote appears here once you fill out the form. —";
+const RED = "#E8121B";
+const RED_TEXT = "#F04248";
 
-const LABEL_TOP = {
-  pt: "TESTEMUNHO",
-  en: "TESTIMONIAL",
+const TAGS: Record<FrameKind, Record<FrameLanguage, string>> = {
+  A: { pt: "10 Anos · 2016—2026", en: "10 Years · 2016—2026" },
+  B: { pt: "Testemunho · 10 Anos", en: "Testimonial · 10 Years" },
+  C: { pt: "10 Anos · 2016—2026", en: "10 Years · 2016—2026" },
 };
 
-const LABEL_TOP_LONG = {
-  pt: "TESTEMUNHO · SPORTRAIL 10 ANOS",
-  en: "TESTIMONIAL · SPORTRAIL 10 YEARS",
-};
-
-const LABEL_BOTTOM = {
-  pt: "10 ANOS · 2016—2026",
-  en: "10 YEARS · 2016—2026",
-};
+// Average Bebas Neue advance for real names, measured at 100px with 2px tracking.
+const BEBAS_EM_PER_CHAR = 0.42;
+const MIN_NAME_SCALE = 0.55;
 
 function escapeHtml(value: string): string {
   return value
@@ -60,500 +48,195 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function normaliseQuote(value: string): string {
-  return value.replace(/\s*\r?\n\s*/g, " ").replace(/[ \t]+/g, " ").trim();
+function fitNameSize(name: string, base: number, available: number): number {
+  const chars = Math.max(name.length, 1);
+  const fit = Math.floor(available / (chars * BEBAS_EM_PER_CHAR));
+  return Math.max(Math.round(base * MIN_NAME_SCALE), Math.min(base, fit));
 }
 
+type Text = { name: string; nameRaw: string; roleLine: string; tag: string };
 
+function textFor(args: FrameBuildArgs): Text {
+  const name = args.content.name.trim();
+  const role = args.content.role.trim();
+  const affiliation = (args.content.affiliation ?? "").trim();
+  return {
+    name: escapeHtml(name),
+    nameRaw: name,
+    roleLine: escapeHtml(affiliation ? `${role} · ${affiliation}` : role),
+    tag: escapeHtml(TAGS[args.kind][args.language]),
+  };
+}
 
-const BASE_RESET = `* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { background: transparent; font-family: 'DM Sans', sans-serif; }`;
-
-type FrameAGeometry = {
-  bandTop: number;
-  bandBottom: number;
-  labelSize: number;
-  labelLetter: number;
-  logoWidth: number;
-  anniversarySize: number;
-  anniversaryLetter: number;
-  paddingX: number;
-  quoteMarkSize: number;
-  quoteMarkRight: number;
-  quoteMarkTop: number;
-};
-
-const FRAME_A_GEOM: Record<FrameFormat, FrameAGeometry> = {
-  "9x16": {
-    bandTop: 200,
-    bandBottom: 240,
-    labelSize: 22,
-    labelLetter: 7,
-    logoWidth: 320,
-    anniversarySize: 16,
-    anniversaryLetter: 4,
-    paddingX: 80,
-    quoteMarkSize: 240,
-    quoteMarkRight: 80,
-    quoteMarkTop: 30,
-  },
-  "1x1": {
-    bandTop: 150,
-    bandBottom: 170,
-    labelSize: 20,
-    labelLetter: 6,
-    logoWidth: 260,
-    anniversarySize: 14,
-    anniversaryLetter: 3,
-    paddingX: 70,
-    quoteMarkSize: 180,
-    quoteMarkRight: 70,
-    quoteMarkTop: 20,
-  },
-  "16x9": {
-    bandTop: 130,
-    bandBottom: 150,
-    labelSize: 20,
-    labelLetter: 6,
-    logoWidth: 260,
-    anniversarySize: 14,
-    anniversaryLetter: 3,
-    paddingX: 90,
-    quoteMarkSize: 160,
-    quoteMarkRight: 90,
-    quoteMarkTop: 20,
-  },
-};
-
-function buildFrameA(args: FrameBuildArgs): string {
-  const { width, height } = FRAME_DIMENSIONS[args.format];
-  const g = FRAME_A_GEOM[args.format];
-  const labelTop = escapeHtml(LABEL_TOP[args.language]);
-  const labelBottom = escapeHtml(LABEL_BOTTOM[args.language]);
-
+function page(width: number, height: number, css: string, body: string): string {
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 ${FONTS_INLINE_STYLE}
 <style>
-  ${BASE_RESET}
-  html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
-  .frame {
-    width: ${width}px;
-    height: ${height}px;
-    position: relative;
-  }
-  .band {
-    position: absolute;
-    left: 0;
-    right: 0;
-    background: #0B0A0F;
-    color: #FAF8F5;
-    display: flex;
-    align-items: center;
-    padding: 0 ${g.paddingX}px;
-    overflow: hidden;
-  }
-  .band-top {
-    top: 0;
-    height: ${g.bandTop}px;
-    border-bottom: 4px solid #ED1C24;
-  }
-  .band-bottom {
-    bottom: 0;
-    height: ${g.bandBottom}px;
-    border-top: 4px solid #ED1C24;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-  }
-  .label-top {
-    font-family: 'DM Sans', sans-serif;
-    font-size: ${g.labelSize}px;
-    font-weight: 700;
-    letter-spacing: ${g.labelLetter}px;
-    color: #FAF8F5;
-    text-transform: uppercase;
-    position: relative;
-    z-index: 2;
-  }
-  .quote-mark {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: ${g.quoteMarkSize}px;
-    line-height: 0.7;
-    color: #ED1C24;
-    opacity: 0.55;
-    position: absolute;
-    right: ${g.quoteMarkRight}px;
-    top: ${g.quoteMarkTop}px;
-    pointer-events: none;
-    z-index: 1;
-  }
-  .brand-logo {
-    width: ${g.logoWidth}px;
-    height: auto;
-    display: block;
-  }
-  .brand-anniversary {
-    font-family: 'DM Sans', sans-serif;
-    font-size: ${g.anniversarySize}px;
-    font-weight: 400;
-    letter-spacing: ${g.anniversaryLetter}px;
-    color: #AAAAAA;
-    margin-top: 14px;
-    text-transform: uppercase;
-  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: ${width}px; height: ${height}px; background: transparent; overflow: hidden; font-family: 'DM Sans', sans-serif; color: #fff; }
+  .f { position: absolute; inset: 0; }
+  .name { font-family: 'Bebas Neue', sans-serif; font-weight: 400; line-height: .9; letter-spacing: 2px; overflow-wrap: anywhere; }
+  .role { font-weight: 400; color: rgba(255,255,255,.82); }
+  .tag { font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+${css}
 </style>
 </head>
-<body>
-  <div class="frame">
-    <div class="band band-top">
-      <div class="label-top">${labelTop}</div>
-      <div class="quote-mark">"</div>
-    </div>
-    <div class="band band-bottom">
-      <img src="${args.logoB64}" alt="Sportrail" class="brand-logo">
-      <div class="brand-anniversary">${labelBottom}</div>
-    </div>
-  </div>
-</body>
+<body><div class="f">${body}</div></body>
 </html>`;
 }
 
-type FrameBGeometry = {
-  nameBand: number;
-  logoBand: number;
-  paddingX: number;
+type CinematicGeometry = {
+  topScrim: number;
+  bottomScrim: number;
+  side: number;
+  logoTop: number;
+  logoHeight: number;
+  tagTop: number;
   tagSize: number;
-  tagLetter: number;
-  nameSize: number;
-  roleSize: number;
-  logoWidth: number;
-  anniversarySize: number;
-  anniversaryLetter: number;
+  tagTracking: number;
+  blockBottom: number;
+  blockMaxWidth: number;
+  ruleWidth: number;
+  ruleGap: number;
+  name: number;
+  role: number;
+  roleGap: number;
 };
 
-const FRAME_B_GEOM: Record<FrameFormat, FrameBGeometry> = {
-  "9x16": {
-    nameBand: 210,
-    logoBand: 150,
-    paddingX: 80,
-    tagSize: 18,
-    tagLetter: 5,
-    nameSize: 56,
-    roleSize: 22,
-    logoWidth: 260,
-    anniversarySize: 14,
-    anniversaryLetter: 3,
-  },
-  "1x1": {
-    nameBand: 170,
-    logoBand: 120,
-    paddingX: 70,
-    tagSize: 16,
-    tagLetter: 4,
-    nameSize: 44,
-    roleSize: 18,
-    logoWidth: 220,
-    anniversarySize: 12,
-    anniversaryLetter: 3,
-  },
-  "16x9": {
-    nameBand: 160,
-    logoBand: 110,
-    paddingX: 100,
-    tagSize: 16,
-    tagLetter: 4,
-    nameSize: 44,
-    roleSize: 18,
-    logoWidth: 220,
-    anniversarySize: 12,
-    anniversaryLetter: 3,
-  },
+const CINEMATIC: Record<FrameFormat, CinematicGeometry> = {
+  "9x16": { topScrim: 300, bottomScrim: 820, side: 64, logoTop: 64, logoHeight: 52, tagTop: 80, tagSize: 20, tagTracking: 7, blockBottom: 350, blockMaxWidth: 952, ruleWidth: 72, ruleGap: 28, name: 132, role: 38, roleGap: 14 },
+  "1x1": { topScrim: 240, bottomScrim: 540, side: 64, logoTop: 56, logoHeight: 50, tagTop: 70, tagSize: 18, tagTracking: 6, blockBottom: 72, blockMaxWidth: 952, ruleWidth: 64, ruleGap: 24, name: 112, role: 34, roleGap: 12 },
+  "16x9": { topScrim: 220, bottomScrim: 520, side: 96, logoTop: 64, logoHeight: 52, tagTop: 80, tagSize: 20, tagTracking: 7, blockBottom: 88, blockMaxWidth: 1200, ruleWidth: 72, ruleGap: 26, name: 120, role: 36, roleGap: 12 },
 };
 
-function buildFrameB(args: FrameBuildArgs): string {
+function buildCinematic(args: FrameBuildArgs): string {
   const { width, height } = FRAME_DIMENSIONS[args.format];
-  const g = FRAME_B_GEOM[args.format];
-  const tagLabel = escapeHtml(LABEL_TOP[args.language]);
-  const labelBottom = escapeHtml(LABEL_BOTTOM[args.language]);
-
-  const name = args.generic
-    ? PLACEHOLDER_NAME
-    : escapeHtml(args.content.name ?? "");
-  const role = args.generic
-    ? PLACEHOLDER_ROLE
-    : escapeHtml(args.content.role ?? "");
-  const affiliation = args.generic
-    ? PLACEHOLDER_AFFILIATION
-    : escapeHtml(args.content.affiliation ?? "");
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-${FONTS_INLINE_STYLE}
-<style>
-  ${BASE_RESET}
-  html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
-  .frame {
-    width: ${width}px;
-    height: ${height}px;
-    position: relative;
-  }
-  .name-band {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: ${g.logoBand}px;
-    height: ${g.nameBand}px;
-    background: #0B0A0F;
-    padding: 0 ${g.paddingX}px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    border-left: 6px solid #ED1C24;
-  }
-  .tag {
-    font-family: 'DM Sans', sans-serif;
-    font-size: ${g.tagSize}px;
-    font-weight: 700;
-    letter-spacing: ${g.tagLetter}px;
-    color: #ED1C24;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-  }
-  .name {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: ${g.nameSize}px;
-    line-height: 1;
-    color: #FAF8F5;
-    letter-spacing: 1px;
-  }
-  .role {
-    font-family: 'DM Sans', sans-serif;
-    font-size: ${g.roleSize}px;
-    font-weight: 400;
-    color: #AAAAAA;
-    margin-top: 10px;
-    line-height: 1.4;
-  }
-  .logo-band {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: ${g.logoBand}px;
-    background: #ED1C24;
-    padding: 0 ${g.paddingX}px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .brand-logo {
-    width: ${g.logoWidth}px;
-    height: auto;
-    display: block;
-  }
-  .brand-anniversary {
-    font-family: 'DM Sans', sans-serif;
-    font-size: ${g.anniversarySize}px;
-    font-weight: 700;
-    letter-spacing: ${g.anniversaryLetter}px;
-    color: #FAF8F5;
-    text-transform: uppercase;
-  }
-</style>
-</head>
-<body>
-  <div class="frame">
-    <div class="name-band">
-      <div class="tag">${tagLabel}</div>
-      <div class="name">${name}</div>
-      <div class="role">${role}${affiliation ? ` &middot; ${affiliation}` : ""}</div>
-    </div>
-    <div class="logo-band">
-      <img src="${args.logoB64}" alt="Sportrail" class="brand-logo">
-      <div class="brand-anniversary">${labelBottom}</div>
-    </div>
-  </div>
-</body>
-</html>`;
+  const g = CINEMATIC[args.format];
+  const t = textFor(args);
+  const blockWidth = Math.min(g.blockMaxWidth, width - 2 * g.side);
+  const nameSize = fitNameSize(t.nameRaw, g.name, blockWidth);
+  const css = `
+  .top { position: absolute; inset: 0 0 auto 0; height: ${g.topScrim}px; background: linear-gradient(#000a, #0000); }
+  .bot { position: absolute; inset: auto 0 0 0; height: ${g.bottomScrim}px; background: linear-gradient(#0000, #000c 55%, #000e); }
+  .logo { position: absolute; top: ${g.logoTop}px; left: ${g.side}px; height: ${g.logoHeight}px; opacity: .95; }
+  .tag { position: absolute; top: ${g.tagTop}px; right: ${g.side}px; font-size: ${g.tagSize}px; letter-spacing: ${g.tagTracking}px; color: rgba(255,255,255,.85); }
+  .blk { position: absolute; left: ${g.side}px; bottom: ${g.blockBottom}px; width: ${blockWidth}px; }
+  .rule { width: ${g.ruleWidth}px; height: 4px; background: ${RED}; margin-bottom: ${g.ruleGap}px; }
+  .name { font-size: ${nameSize}px; }
+  .role { font-size: ${g.role}px; margin-top: ${g.roleGap}px; }`;
+  const body = `<div class="top"></div><div class="bot"></div>
+<img class="logo" src="${args.logoB64}" alt="Sportrail">
+<div class="tag">${t.tag}</div>
+<div class="blk"><div class="rule"></div><div class="name">${t.name}</div><div class="role">${t.roleLine}</div></div>`;
+  return page(width, height, css, body);
 }
 
-type QuoteScale = { fontSize: number; lineHeight: number };
+type EditorialGeometry = {
+  bottomScrim: number;
+  inset: number;
+  logoTop: number;
+  logoHeight: number;
+  blockBottom: number;
+  blockPadding: number;
+  tagSize: number;
+  tagTracking: number;
+  tagGap: number;
+  name: number;
+  role: number;
+  roleGap: number;
+};
 
-function quoteScaleFrameC(quote: string): QuoteScale {
-  const len = normaliseQuote(quote).length;
-  if (len <= 140) return { fontSize: 54, lineHeight: 1.25 };
-  if (len <= 200) return { fontSize: 44, lineHeight: 1.28 };
-  return { fontSize: 36, lineHeight: 1.3 };
+const EDITORIAL: Record<FrameFormat, EditorialGeometry> = {
+  "9x16": { bottomScrim: 900, inset: 36, logoTop: 84, logoHeight: 50, blockBottom: 350, blockPadding: 80, tagSize: 21, tagTracking: 7, tagGap: 22, name: 120, role: 36, roleGap: 12 },
+  "1x1": { bottomScrim: 600, inset: 32, logoTop: 72, logoHeight: 50, blockBottom: 96, blockPadding: 80, tagSize: 19, tagTracking: 6, tagGap: 18, name: 104, role: 32, roleGap: 10 },
+  "16x9": { bottomScrim: 560, inset: 36, logoTop: 76, logoHeight: 50, blockBottom: 100, blockPadding: 200, tagSize: 20, tagTracking: 7, tagGap: 20, name: 112, role: 34, roleGap: 12 },
+};
+
+function buildEditorial(args: FrameBuildArgs): string {
+  const { width, height } = FRAME_DIMENSIONS[args.format];
+  const g = EDITORIAL[args.format];
+  const t = textFor(args);
+  const nameSize = fitNameSize(t.nameRaw, g.name, width - 2 * g.blockPadding);
+  const css = `
+  .bot { position: absolute; inset: auto 0 0 0; height: ${g.bottomScrim}px; background: linear-gradient(#0000, #000d 60%); }
+  .bd { position: absolute; inset: ${g.inset}px; border: 2px solid rgba(255,255,255,.55); border-radius: 6px; }
+  .ft { position: absolute; left: 0; right: 0; top: ${g.logoTop}px; text-align: center; }
+  .ft img { height: ${g.logoHeight}px; }
+  .blk { position: absolute; left: 0; right: 0; bottom: ${g.blockBottom}px; padding: 0 ${g.blockPadding}px; text-align: center; }
+  .tag { color: ${RED_TEXT}; font-size: ${g.tagSize}px; letter-spacing: ${g.tagTracking}px; margin-bottom: ${g.tagGap}px; }
+  .name { font-size: ${nameSize}px; }
+  .role { font-size: ${g.role}px; margin-top: ${g.roleGap}px; }`;
+  const body = `<div class="bot"></div><div class="bd"></div>
+<div class="ft"><img src="${args.logoB64}" alt="Sportrail"></div>
+<div class="blk"><div class="tag">${t.tag}</div><div class="name">${t.name}</div><div class="role">${t.roleLine}</div></div>`;
+  return page(width, height, css, body);
 }
 
-function buildFrameC(args: FrameBuildArgs): string {
-  if (args.format !== "9x16") {
-    throw new Error("Frame C is only available in 9:16.");
-  }
+type GlassGeometry = {
+  topScrim: number;
+  side: number;
+  logoTop: number;
+  logoHeight: number;
+  tagTop: number;
+  tagSize: number;
+  tagTracking: number;
+  cardLeft: number;
+  // null = card hugs its content (lower third), capped at cardMaxWidth.
+  cardRight: number | null;
+  cardMaxWidth: number;
+  cardMinWidth: number;
+  cardBottom: number;
+  padding: [number, number, number];
+  radius: number;
+  gap: number;
+  name: number;
+  role: number;
+  roleGap: number;
+};
+
+const GLASS: Record<FrameFormat, GlassGeometry> = {
+  "9x16": { topScrim: 260, side: 64, logoTop: 64, logoHeight: 50, tagTop: 79, tagSize: 20, tagTracking: 7, cardLeft: 56, cardRight: 56, cardMaxWidth: 968, cardMinWidth: 0, cardBottom: 350, padding: [38, 44, 40], radius: 28, gap: 36, name: 104, role: 34, roleGap: 10 },
+  "1x1": { topScrim: 220, side: 64, logoTop: 56, logoHeight: 50, tagTop: 69, tagSize: 18, tagTracking: 6, cardLeft: 56, cardRight: 56, cardMaxWidth: 968, cardMinWidth: 0, cardBottom: 64, padding: [32, 40, 34], radius: 26, gap: 30, name: 92, role: 30, roleGap: 8 },
+  "16x9": { topScrim: 220, side: 96, logoTop: 64, logoHeight: 50, tagTop: 79, tagSize: 20, tagTracking: 7, cardLeft: 88, cardRight: null, cardMaxWidth: 1100, cardMinWidth: 560, cardBottom: 80, padding: [34, 44, 36], radius: 28, gap: 32, name: 96, role: 32, roleGap: 8 },
+};
+
+function buildGlass(args: FrameBuildArgs): string {
   const { width, height } = FRAME_DIMENSIONS[args.format];
-
-  const labelTop = escapeHtml(LABEL_TOP_LONG[args.language]);
-  const labelBottom = escapeHtml(LABEL_BOTTOM[args.language]);
-
-  const placeholderQuote =
-    args.language === "pt" ? PLACEHOLDER_QUOTE_PT : PLACEHOLDER_QUOTE_EN;
-  const quoteRaw = args.generic
-    ? placeholderQuote
-    : (args.language === "pt"
-        ? args.content.quote_pt
-        : args.content.quote_en) ?? placeholderQuote;
-  const quote = escapeHtml(normaliseQuote(quoteRaw));
-  const scale = quoteScaleFrameC(quoteRaw);
-
-  const name = args.generic
-    ? PLACEHOLDER_NAME
-    : escapeHtml(args.content.name ?? PLACEHOLDER_NAME);
-  const role = args.generic
-    ? PLACEHOLDER_ROLE
-    : escapeHtml(args.content.role ?? PLACEHOLDER_ROLE);
-  const affiliation = args.generic
-    ? ""
-    : escapeHtml(args.content.affiliation ?? "");
-
-  const headerHeight = 110;
-  const videoArea = 870;
-  const textBlockHeight = height - headerHeight - videoArea;
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-${FONTS_INLINE_STYLE}
-<style>
-  ${BASE_RESET}
-  html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
-  .frame {
-    width: ${width}px;
-    height: ${height}px;
-    position: relative;
-  }
-  .band-top {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: ${headerHeight}px;
-    background: #0B0A0F;
-    border-bottom: 3px solid #ED1C24;
-    display: flex;
-    align-items: center;
-    padding: 0 80px;
-  }
-  .label-top {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 6px;
-    color: #FAF8F5;
-    text-transform: uppercase;
-  }
-  .text-block {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: ${textBlockHeight}px;
-    background: #0B0A0F;
-    padding: 70px 80px 60px 80px;
-    border-top: 4px solid #ED1C24;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-  .quote-mark {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 240px;
-    line-height: 0.7;
-    color: #ED1C24;
-    opacity: 0.18;
-    position: absolute;
-    top: 30px;
-    right: 60px;
-    pointer-events: none;
-    z-index: 1;
-  }
-  .quote {
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 500;
-    font-size: ${scale.fontSize}px;
-    line-height: ${scale.lineHeight};
-    color: #FAF8F5;
-    letter-spacing: -0.3px;
-    position: relative;
-    z-index: 2;
-  }
-  .divider {
-    width: 60px;
-    height: 2px;
-    background: #ED1C24;
-    margin: 30px 0 20px 0;
-  }
-  .name {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 48px;
-    line-height: 1;
-    color: #FAF8F5;
-    letter-spacing: 1px;
-  }
-  .role {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 20px;
-    font-weight: 400;
-    color: #AAAAAA;
-    margin-top: 8px;
-    line-height: 1.4;
-  }
-  .footer-line {
-    margin-top: 28px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    color: #ED1C24;
-    text-transform: uppercase;
-  }
-</style>
-</head>
-<body>
-  <div class="frame">
-    <div class="band-top">
-      <div class="label-top">${labelTop}</div>
-    </div>
-    <div class="text-block">
-      <div class="quote-mark">"</div>
-      <div>
-        <div class="quote">${quote}</div>
-      </div>
-      <div>
-        <div class="divider"></div>
-        <div class="name">${name}</div>
-        <div class="role">${role}${affiliation ? ` &middot; ${affiliation}` : ""}</div>
-        <div class="footer-line">${labelBottom}</div>
-      </div>
-    </div>
-  </div>
-</body>
-</html>`;
+  const g = GLASS[args.format];
+  const t = textFor(args);
+  const [padTop, padX, padBottom] = g.padding;
+  const cardWidth =
+    g.cardRight === null ? g.cardMaxWidth : width - g.cardLeft - g.cardRight;
+  const nameSize = fitNameSize(t.nameRaw, g.name, cardWidth - 2 * padX - 6 - g.gap - 3);
+  const horizontal =
+    g.cardRight === null
+      ? `left: ${g.cardLeft}px; max-width: ${g.cardMaxWidth}px; min-width: ${g.cardMinWidth}px;`
+      : `left: ${g.cardLeft}px; right: ${g.cardRight}px;`;
+  const css = `
+  .top { position: absolute; inset: 0 0 auto 0; height: ${g.topScrim}px; background: linear-gradient(#0009, #0000); }
+  .logo { position: absolute; top: ${g.logoTop}px; left: ${g.side}px; height: ${g.logoHeight}px; }
+  .tag { position: absolute; top: ${g.tagTop}px; right: ${g.side}px; font-size: ${g.tagSize}px; letter-spacing: ${g.tagTracking}px; color: rgba(255,255,255,.85); }
+  .card { position: absolute; ${horizontal} bottom: ${g.cardBottom}px; padding: ${padTop}px ${padX}px ${padBottom}px; border-radius: ${g.radius}px; background: rgba(11,10,15,.62); border: 1.5px solid rgba(255,255,255,.16); box-shadow: 0 30px 80px rgba(0,0,0,.45); display: flex; align-items: center; gap: ${g.gap}px; }
+  .bar { width: 6px; flex: none; align-self: stretch; border-radius: 3px; background: ${RED}; }
+  .name { font-size: ${nameSize}px; }
+  .role { font-size: ${g.role}px; margin-top: ${g.roleGap}px; }`;
+  const body = `<div class="top"></div>
+<img class="logo" src="${args.logoB64}" alt="Sportrail">
+<div class="tag">${t.tag}</div>
+<div class="card"><div class="bar"></div><div><div class="name">${t.name}</div><div class="role">${t.roleLine}</div></div></div>`;
+  return page(width, height, css, body);
 }
 
 export function buildFrameHtml(args: FrameBuildArgs): string {
   switch (args.kind) {
     case "A":
-      return buildFrameA(args);
+      return buildCinematic(args);
     case "B":
-      return buildFrameB(args);
+      return buildEditorial(args);
     case "C":
-      return buildFrameC(args);
+      return buildGlass(args);
   }
 }
