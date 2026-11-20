@@ -60,7 +60,7 @@ PT 9:16 (1080×1920), EN 4:5 e EN 9:16. O ZIP com os quatro fica perto de
 | `label_top_en`    | texto  | 1–40                                    |
 | `label_bottom_pt` | texto  | 1–80                                    |
 | `label_bottom_en` | texto  | 1–80                                    |
-| `photo`           | ficheiro | `image/jpeg`, `image/jpg` ou `image/png`, ≤ 10 MB |
+| `photo`           | ficheiro | `image/jpeg`, `image/jpg` ou `image/png`, ≤ 10 MB; o pedido inteiro tem de ficar abaixo de 4,5 MB |
 
 ### Resposta
 
@@ -68,11 +68,11 @@ Duas formas, escolhidas pela query string:
 
 **`POST /api/generate?as=zip`** — recomendado para integração
 
-- `200`, `Content-Type: application/zip` (corpo = ZIP binário com os 4 PNGs)
+- `200`, `Content-Type: application/zip` (corpo = ZIP binário com os 4 JPEG)
 - `Content-Disposition: attachment; filename="Sportrail_Testemunho_<slug>.zip"`
 - Header `X-Post-Manifest`: JSON com a lista de ficheiros, ex:
   ```json
-  [{"key":"pt_4x5","filename":"Sportrail_Testemunho_joao_4x5_pt.png"},
+  [{"key":"pt_4x5","filename":"Sportrail_Testemunho_joao_4x5_pt.jpg"},
    {"key":"pt_9x16","filename":"..."},
    {"key":"en_4x5","filename":"..."},
    {"key":"en_9x16","filename":"..."}]
@@ -83,10 +83,10 @@ Duas formas, escolhidas pela query string:
 ```json
 {
   "posts": {
-    "pt_4x5":  { "filename": "...png", "base64": "iVBORw0KGgo..." },
-    "pt_9x16": { "filename": "...png", "base64": "..." },
-    "en_4x5":  { "filename": "...png", "base64": "..." },
-    "en_9x16": { "filename": "...png", "base64": "..." }
+    "pt_4x5":  { "filename": "...jpg", "base64": "/9j/4AAQ..." },
+    "pt_9x16": { "filename": "...jpg", "base64": "..." },
+    "en_4x5":  { "filename": "...jpg", "base64": "..." },
+    "en_9x16": { "filename": "...jpg", "base64": "..." }
   }
 }
 ```
