@@ -73,6 +73,10 @@ export type RenderJob = {
   width: number;
   height: number;
   transparent?: boolean;
+  // Pixel density of the output. Defaults to 2 (frames). Posts use 1.
+  scale?: number;
+  // When set, output is JPEG at this quality (0-100) instead of PNG.
+  jpegQuality?: number;
 };
 
 async function renderOne(job: RenderJob): Promise<Buffer> {
@@ -86,12 +90,11 @@ async function renderOne(job: RenderJob): Promise<Buffer> {
   try {
     const context = await browser.newContext({
       viewport: { width: job.width, height: job.height },
-      // Render at 2x so a 1080x1920 frame outputs at 2160x3840 pixels.
-      // Editors like Clideo/CapCut/Veed re-sample the overlay during preview
-      // and export; at 1x the small text in the footer band turns soft.
-      // Memory cost is contained because we already launch a fresh browser
-      // per job (no parallel contexts), so peak is one 2x backing buffer.
-      deviceScaleFactor: 2,
+      // Frames default to 2x (a 1080x1920 frame outputs 2160x3840) because
+      // video editors re-sample the overlay and small text turns soft at 1x.
+      // Posts pass scale 1: Instagram serves 1080 wide, and 2x posts blow
+      // past Vercel's 4.5 MB response cap.
+      deviceScaleFactor: job.scale ?? 2,
     });
     try {
       const page = await context.newPage();
@@ -99,6 +102,13 @@ async function renderOne(job: RenderJob): Promise<Buffer> {
       await page
         .evaluate(() => document.fonts.ready)
         .catch(() => undefined);
+      if (job.jpegQuality !== undefined) {
+        return await page.screenshot({
+          fullPage: false,
+          type: "jpeg",
+          quality: job.jpegQuality,
+        });
+      }
       return await page.screenshot({
         fullPage: false,
         omitBackground: job.transparent ?? false,

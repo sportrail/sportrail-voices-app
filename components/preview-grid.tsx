@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 export type GeneratedPost = {
   filename: string;
-  url: string; // object URL pointing at the PNG blob
+  url: string; // object URL pointing at the JPEG blob
 };
 
 export type GeneratedPosts = {
