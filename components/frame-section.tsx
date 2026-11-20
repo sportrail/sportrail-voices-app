@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import JSZip from "jszip";
 import {
   FramePreviewGrid,
@@ -21,8 +21,6 @@ type FrameTestimonialContent = {
   name?: string;
   role?: string;
   affiliation?: string;
-  quote_pt?: string;
-  quote_en?: string;
 };
 
 type Props = {
@@ -36,21 +34,18 @@ const FRAME_OPTIONS: Array<{
 }> = [
   {
     value: "A",
-    title: "A — Simétrica",
-    description:
-      "Header com label e aspa decorativa, footer com logo. Sempre genérica.",
+    title: "A — Cinematic",
+    description: "Sem bandas: gradiente suave, filete vermelho e nome grande.",
   },
   {
     value: "B",
-    title: "B — Com nome + função",
-    description:
-      "Header fino, footer com banda de nome/função e logo Sportrail.",
+    title: "B — Editorial",
+    description: "Filete fino à volta e nome centrado com etiqueta vermelha.",
   },
   {
     value: "C",
-    title: "C — Vídeo + quote (só 9:16)",
-    description:
-      "Vídeo na metade superior, quote escrita na metade inferior — funciona sem som.",
+    title: "C — Glass card",
+    description: "Cartão translúcido com o nome, a flutuar sobre o vídeo.",
   },
 ];
 
@@ -69,24 +64,9 @@ export function FrameSection({ testimonial }: Props) {
   const [formats, setFormats] = useState<Set<FrameFormat>>(
     () => new Set(["9x16"]),
   );
-  const [generic, setGeneric] = useState(false);
   const [state, setState] = useState<State>({ kind: "idle" });
 
-  const isC = kind === "C";
-  const isA = kind === "A";
-  const effectiveGeneric = isA ? true : generic;
-
-  useEffect(() => {
-    if (isC) {
-      setFormats((prev) => {
-        if (prev.size === 1 && prev.has("9x16")) return prev;
-        return new Set(["9x16"]);
-      });
-    }
-  }, [isC]);
-
   function toggleFormat(format: FrameFormat) {
-    if (isC && format !== "9x16") return;
     setFormats((prev) => {
       const next = new Set(prev);
       if (next.has(format)) {
@@ -100,22 +80,14 @@ export function FrameSection({ testimonial }: Props) {
   }
 
   const validationError = useMemo(() => {
-    if (effectiveGeneric) return null;
-    if (kind === "B") {
-      if (!testimonial.name?.trim() || !testimonial.role?.trim()) {
-        return "Para a variante com dados, preenche pelo menos nome e função em cima.";
-      }
-    }
-    if (kind === "C") {
-      if (
-        !testimonial.quote_pt?.trim() &&
-        !testimonial.quote_en?.trim()
-      ) {
-        return "Para a variante com dados, preenche pelo menos uma quote em cima.";
-      }
+    if (
+      (testimonial.name?.trim().length ?? 0) < 2 ||
+      (testimonial.role?.trim().length ?? 0) < 2
+    ) {
+      return "Preenche o nome e a função em cima para gerar as molduras.";
     }
     return null;
-  }, [effectiveGeneric, kind, testimonial]);
+  }, [testimonial]);
 
   const canSubmit =
     !validationError && state.kind !== "submitting" && formats.size > 0;
@@ -131,13 +103,10 @@ export function FrameSection({ testimonial }: Props) {
             name: testimonial.name ?? "",
             role: testimonial.role ?? "",
             affiliation: testimonial.affiliation ?? "",
-            quote_pt: testimonial.quote_pt ?? "",
-            quote_en: testimonial.quote_en ?? "",
           },
           selecoes: {
             moldura: kind,
             formatos: Array.from(formats),
-            generic: effectiveGeneric,
           },
         }),
       });
@@ -240,28 +209,19 @@ export function FrameSection({ testimonial }: Props) {
         <legend className={FIELD_LABEL}>Formatos a gerar</legend>
         <div className="flex flex-wrap gap-3">
           {FORMAT_OPTIONS.map((opt) => {
-            const disabled = isC && opt.value !== "9x16";
             const checked = formats.has(opt.value);
             return (
               <label
                 key={opt.value}
-                title={
-                  disabled
-                    ? "A moldura C só está disponível em 9:16."
-                    : undefined
-                }
-                className={`inline-flex items-center gap-2 rounded-sr border px-4 py-2 text-sm font-bold uppercase tracking-widest ${
-                  disabled
-                    ? "cursor-not-allowed border-sr-border bg-sr-card/30 text-sr-grey-dim opacity-50"
-                    : checked
-                      ? "cursor-pointer border-sr-red bg-sr-card text-sr-cream"
-                      : "cursor-pointer border-sr-border bg-sr-card/40 text-sr-grey hover:border-sr-grey-dim"
+                className={`inline-flex cursor-pointer items-center gap-2 rounded-sr border px-4 py-2 text-sm font-bold uppercase tracking-widest ${
+                  checked
+                    ? "border-sr-red bg-sr-card text-sr-cream"
+                    : "border-sr-border bg-sr-card/40 text-sr-grey hover:border-sr-grey-dim"
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={checked}
-                  disabled={disabled}
                   onChange={() => toggleFormat(opt.value)}
                   className="accent-sr-red"
                 />
@@ -274,46 +234,6 @@ export function FrameSection({ testimonial }: Props) {
           Cada formato é gerado em PT e EN.
         </p>
       </fieldset>
-
-      {!isA && (
-        <fieldset className="space-y-3">
-          <legend className={FIELD_LABEL}>Variante</legend>
-          <div className="flex flex-wrap gap-3">
-            <label
-              className={`inline-flex cursor-pointer items-center gap-2 rounded-sr border px-4 py-2 text-sm font-bold uppercase tracking-widest ${
-                !generic
-                  ? "border-sr-red bg-sr-card text-sr-cream"
-                  : "border-sr-border bg-sr-card/40 text-sr-grey hover:border-sr-grey-dim"
-              }`}
-            >
-              <input
-                type="radio"
-                name="frame-variant"
-                checked={!generic}
-                onChange={() => setGeneric(false)}
-                className="accent-sr-red"
-              />
-              Com dados do testemunho
-            </label>
-            <label
-              className={`inline-flex cursor-pointer items-center gap-2 rounded-sr border px-4 py-2 text-sm font-bold uppercase tracking-widest ${
-                generic
-                  ? "border-sr-red bg-sr-card text-sr-cream"
-                  : "border-sr-border bg-sr-card/40 text-sr-grey hover:border-sr-grey-dim"
-              }`}
-            >
-              <input
-                type="radio"
-                name="frame-variant"
-                checked={generic}
-                onChange={() => setGeneric(true)}
-                className="accent-sr-red"
-              />
-              Genérica (sem nome/quote)
-            </label>
-          </div>
-        </fieldset>
-      )}
 
       {validationError && (
         <div className="rounded-sr border border-sr-border bg-sr-card p-3 text-xs text-sr-grey">
