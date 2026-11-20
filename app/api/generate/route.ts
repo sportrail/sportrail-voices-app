@@ -15,6 +15,7 @@ export const maxDuration = 60;
 
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/jpg", "image/png"]);
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+const POST_JPEG_QUALITY = 90;
 
 type GeneratedPost = {
   filename: string;
@@ -104,28 +105,28 @@ export async function POST(request: NextRequest) {
     const renderJobs = [
       {
         key: "pt_4x5",
-        filename: `Sportrail_Testemunho_${slug}_4x5_pt.png`,
+        filename: `Sportrail_Testemunho_${slug}_4x5_pt.jpg`,
         html: buildHtml4x5(ptData, photoB64, logoB64),
         width: 1080,
         height: 1350,
       },
       {
         key: "pt_9x16",
-        filename: `Sportrail_Testemunho_${slug}_9x16_pt.png`,
+        filename: `Sportrail_Testemunho_${slug}_9x16_pt.jpg`,
         html: buildHtml9x16(ptData, photoB64, logoB64),
         width: 1080,
         height: 1920,
       },
       {
         key: "en_4x5",
-        filename: `Sportrail_Testemunho_${slug}_4x5_en.png`,
+        filename: `Sportrail_Testemunho_${slug}_4x5_en.jpg`,
         html: buildHtml4x5(enData, photoB64, logoB64),
         width: 1080,
         height: 1350,
       },
       {
         key: "en_9x16",
-        filename: `Sportrail_Testemunho_${slug}_9x16_en.png`,
+        filename: `Sportrail_Testemunho_${slug}_9x16_en.jpg`,
         html: buildHtml9x16(enData, photoB64, logoB64),
         width: 1080,
         height: 1920,
@@ -137,6 +138,8 @@ export async function POST(request: NextRequest) {
         html: job.html,
         width: job.width,
         height: job.height,
+        scale: 1,
+        jpegQuality: POST_JPEG_QUALITY,
       })),
     );
 
