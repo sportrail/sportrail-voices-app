@@ -10,7 +10,7 @@ export const DEFAULT_LABELS = {
   },
   en: {
     label_top: "TESTIMONIAL",
-    label_bottom: "SPORTRAIL · 10 YEARS · 2016—2026",
+    label_bottom: "SPORTRAIL FOOTBALL · 10 YEARS · 2016—2026",
   },
 } as const;
 
