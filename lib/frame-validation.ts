@@ -7,65 +7,19 @@ export type FrameKindLiteral = (typeof FRAME_KINDS)[number];
 export type FrameFormatLiteral = (typeof FRAME_FORMATS)[number];
 
 export const frameTestimonialSchema = z.object({
-  name: z.string().trim().max(60).optional().default(""),
-  role: z.string().trim().max(80).optional().default(""),
-  affiliation: z.string().trim().max(80).optional().default(""),
-  quote_pt: z.string().trim().max(250).optional().default(""),
-  quote_en: z.string().trim().max(250).optional().default(""),
+  name: z.string().trim().min(2, "Mínimo 2 caracteres.").max(60, "Máximo 60 caracteres."),
+  role: z.string().trim().min(2, "Mínimo 2 caracteres.").max(80, "Máximo 80 caracteres."),
+  affiliation: z.string().trim().max(80, "Máximo 80 caracteres.").optional().default(""),
 });
 
 export const frameSelectionsSchema = z.object({
   moldura: z.enum(FRAME_KINDS),
   formatos: z.array(z.enum(FRAME_FORMATS)).min(1, "Escolhe pelo menos um formato."),
-  generic: z.boolean(),
 });
 
-export const frameRequestSchema = z
-  .object({
-    testemunho: frameTestimonialSchema,
-    selecoes: frameSelectionsSchema,
-  })
-  .superRefine((value, ctx) => {
-    const { moldura, formatos, generic } = value.selecoes;
-
-    if (moldura === "C") {
-      const invalid = formatos.filter((f) => f !== "9x16");
-      if (invalid.length > 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["selecoes", "formatos"],
-          message: "A moldura C só está disponível em 9:16.",
-        });
-      }
-    }
-
-    if (moldura === "A" && !generic) {
-      // Frame A is always generic; force the flag to be ignored, no error needed.
-    }
-
-    if (!generic) {
-      const t = value.testemunho;
-      if (moldura === "B") {
-        if (!t.name || !t.role) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["testemunho", "name"],
-            message:
-              "Para a variante com dados, preenche pelo menos nome e função.",
-          });
-        }
-      }
-      if (moldura === "C") {
-        if (!t.quote_pt && !t.quote_en) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["testemunho", "quote_pt"],
-            message:
-              "Para a variante com dados, preenche pelo menos uma das quotes.",
-          });
-        }
-      }
-    }
-  });
+export const frameRequestSchema = z.object({
+  testemunho: frameTestimonialSchema,
+  selecoes: frameSelectionsSchema,
+});
 
 export type FrameRequest = z.infer<typeof frameRequestSchema>;
