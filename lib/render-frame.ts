@@ -3,6 +3,7 @@ import { FONTS_INLINE_STYLE } from "./fonts-inline";
 export type FrameKind = "A" | "B" | "C";
 export type FrameFormat = "9x16" | "1x1" | "16x9";
 export type FrameLanguage = "pt" | "en";
+export type FrameTag = "10anos" | "testemunho" | "nenhuma";
 
 export type FrameDimensions = { width: number; height: number };
 
@@ -22,6 +23,7 @@ export type FrameBuildArgs = {
   kind: FrameKind;
   format: FrameFormat;
   language: FrameLanguage;
+  tag: FrameTag;
   content: FrameContent;
   logoB64: string;
 };
@@ -29,11 +31,27 @@ export type FrameBuildArgs = {
 const RED = "#E8121B";
 const RED_TEXT = "#F04248";
 
-const TAGS: Record<FrameKind, Record<FrameLanguage, string>> = {
+const ANNIVERSARY_TAGS: Record<FrameKind, Record<FrameLanguage, string>> = {
   A: { pt: "10 Anos · 2016—2026", en: "10 Years · 2016—2026" },
   B: { pt: "Testemunho · 10 Anos", en: "Testimonial · 10 Years" },
   C: { pt: "10 Anos · 2016—2026", en: "10 Years · 2016—2026" },
 };
+
+const TESTIMONIAL_TAG: Record<FrameLanguage, string> = {
+  pt: "Testemunho",
+  en: "Testimonial",
+};
+
+function tagText(args: FrameBuildArgs): string | null {
+  switch (args.tag) {
+    case "10anos":
+      return ANNIVERSARY_TAGS[args.kind][args.language];
+    case "testemunho":
+      return TESTIMONIAL_TAG[args.language];
+    case "nenhuma":
+      return null;
+  }
+}
 
 // Average Bebas Neue advance for real names, measured at 100px with 2px tracking.
 const BEBAS_EM_PER_CHAR = 0.42;
@@ -54,17 +72,18 @@ function fitNameSize(name: string, base: number, available: number): number {
   return Math.max(Math.round(base * MIN_NAME_SCALE), Math.min(base, fit));
 }
 
-type Text = { name: string; nameRaw: string; roleLine: string; tag: string };
+type Text = { name: string; nameRaw: string; roleLine: string; tagHtml: string };
 
 function textFor(args: FrameBuildArgs): Text {
   const name = args.content.name.trim();
   const role = args.content.role.trim();
   const affiliation = (args.content.affiliation ?? "").trim();
+  const tag = tagText(args);
   return {
     name: escapeHtml(name),
     nameRaw: name,
     roleLine: escapeHtml(affiliation ? `${role} · ${affiliation}` : role),
-    tag: escapeHtml(TAGS[args.kind][args.language]),
+    tagHtml: tag === null ? "" : `<div class="tag">${escapeHtml(tag)}</div>`,
   };
 }
 
@@ -129,7 +148,7 @@ function buildCinematic(args: FrameBuildArgs): string {
   .role { font-size: ${g.role}px; margin-top: ${g.roleGap}px; }`;
   const body = `<div class="top"></div><div class="bot"></div>
 <img class="logo" src="${args.logoB64}" alt="Sportrail">
-<div class="tag">${t.tag}</div>
+${t.tagHtml}
 <div class="blk"><div class="rule"></div><div class="name">${t.name}</div><div class="role">${t.roleLine}</div></div>`;
   return page(width, height, css, body);
 }
@@ -171,7 +190,7 @@ function buildEditorial(args: FrameBuildArgs): string {
   .role { font-size: ${g.role}px; margin-top: ${g.roleGap}px; }`;
   const body = `<div class="bot"></div><div class="bd"></div>
 <div class="ft"><img src="${args.logoB64}" alt="Sportrail"></div>
-<div class="blk"><div class="tag">${t.tag}</div><div class="name">${t.name}</div><div class="role">${t.roleLine}</div></div>`;
+<div class="blk">${t.tagHtml}<div class="name">${t.name}</div><div class="role">${t.roleLine}</div></div>`;
   return page(width, height, css, body);
 }
 
@@ -225,7 +244,7 @@ function buildGlass(args: FrameBuildArgs): string {
   .role { font-size: ${g.role}px; margin-top: ${g.roleGap}px; }`;
   const body = `<div class="top"></div>
 <img class="logo" src="${args.logoB64}" alt="Sportrail">
-<div class="tag">${t.tag}</div>
+${t.tagHtml}
 <div class="card"><div class="bar"></div><div><div class="name">${t.name}</div><div class="role">${t.roleLine}</div></div></div>`;
   return page(width, height, css, body);
 }

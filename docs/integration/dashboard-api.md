@@ -128,7 +128,8 @@ Para cada formato pedido gera sempre a versão **PT e EN**.
   },
   "selecoes": {
     "moldura": "A",
-    "formatos": ["9x16"]
+    "formatos": ["9x16"],
+    "etiqueta": "10anos"
   }
 }
 ```
@@ -137,6 +138,13 @@ Regras de validação:
 
 - `moldura`: `"A"` | `"B"` | `"C"`. As três existem nos três formatos.
 - `formatos`: array não vazio de `"9x16"` | `"1x1"` | `"16x9"`.
+- `etiqueta`: opcional, por omissão `"10anos"`.
+
+  | `etiqueta` | Cinematic e Glass card (em cima à direita) | Editorial (por cima do nome) |
+  | --- | --- | --- |
+  | `"10anos"` | «10 Anos · 2016—2026» / «10 Years · 2016—2026» | «Testemunho · 10 Anos» / «Testimonial · 10 Years» |
+  | `"testemunho"` | «Testemunho» / «Testimonial» | «Testemunho» / «Testimonial» |
+  | `"nenhuma"` | sem etiqueta | sem etiqueta (o nome fica no mesmo sítio) |
 - `testemunho.name`: obrigatório, 2 a 60 caracteres.
 - `testemunho.role`: obrigatório, 2 a 80 caracteres.
 - `testemunho.affiliation`: opcional, até 80 caracteres. Aparece como

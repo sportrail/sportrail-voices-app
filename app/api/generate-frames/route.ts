@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
           format,
           content: testemunho,
           language: lang,
+          tag: selecoes.etiqueta,
           logoB64,
         }),
         ...FRAME_DIMENSIONS[format],

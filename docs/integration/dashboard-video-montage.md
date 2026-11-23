@@ -81,12 +81,14 @@ limitadas às origens e referrers configurados.
 Route handler `app/api/frames/route.ts` (`POST`, runtime `nodejs`,
 `maxDuration = 60`), atrás da autenticação que o dashboard já tem.
 
-- Recebe `{ name, role, affiliation, moldura: "A"|"B"|"C", formato: "9x16"|"1x1"|"16x9", lingua: "pt"|"en" }`
+- Recebe `{ name, role, affiliation, moldura: "A"|"B"|"C", formato: "9x16"|"1x1"|"16x9", lingua: "pt"|"en", etiqueta: "10anos"|"testemunho"|"nenhuma" }`
   e valida como a Voices: `name` 2 a 60 caracteres, `role` 2 a 80,
   `affiliation` até 80.
 - Chama `POST ${VOICES_URL}/api/generate-frames` **sem** `?as=zip`, com
   `Authorization: Basic …` e o corpo
-  `{ "testemunho": { name, role, affiliation }, "selecoes": { moldura, "formatos": [formato] } }`.
+  `{ "testemunho": { name, role, affiliation }, "selecoes": { moldura, "formatos": [formato], etiqueta } }`.
+  O que cada `etiqueta` mostra está em `dashboard-api.md`; `"10anos"` é o
+  valor por omissão.
 - A resposta traz `{ "frames": { "<moldura>_<formato>_<lingua>": { filename, base64 } } }`.
   Devolve ao browser só o PNG pedido, com `Content-Type: image/png`.
 - A Voices gera sempre PT e EN, por isso demora 10 a 25 s. Mostra o estado
@@ -265,7 +267,9 @@ Passos da página:
 1. **Vídeo:** zona para largar o ficheiro, com pré-visualização, duração e
    resolução.
 2. **Dados:** nome, função e organização.
-3. **Moldura, formato e língua.** Assim que houver PNG, mostra uma
+3. **Moldura, formato, língua e etiqueta.** A etiqueta tem três opções:
+   «10 Anos» (por omissão), «Testemunho» e «Sem etiqueta». Assim que houver
+   PNG, mostra uma
    pré-visualização imediata: o `<video>` com `object-fit: cover` no formato
    escolhido e o PNG por cima.
 4. **Montar vídeo**, com progresso em três fases: Moldura, Montagem (x %),
@@ -297,3 +301,5 @@ Passos da página:
 9. Cancelar a meio da montagem.
 10. Tentar fechar o separador durante a montagem: aparece o aviso.
 11. No MP4, a moldura está na mesma posição que no PNG da Voices, sem esticar.
+12. As três etiquetas («10 Anos», «Testemunho», «Sem etiqueta») nas três
+    molduras.
