@@ -9,6 +9,7 @@ import {
 } from "@/components/preview-grid";
 import { FrameSection } from "@/components/frame-section";
 import type { TestimonialFormValues } from "@/lib/validation";
+import { shrinkPhoto } from "@/lib/shrink-photo";
 
 type State =
   | { kind: "idle" }
@@ -49,7 +50,7 @@ export default function HomePage() {
     formData.append("label_top_en", values.label_top_en);
     formData.append("label_bottom_pt", values.label_bottom_pt);
     formData.append("label_bottom_en", values.label_bottom_en);
-    formData.append("photo", values.photo);
+    formData.append("photo", await shrinkPhoto(values.photo));
 
     try {
       const response = await fetch("/api/generate?as=zip", {
@@ -65,7 +66,7 @@ export default function HomePage() {
         return;
       }
 
-      // Server returned application/zip with all 4 PNGs.
+      // Server returned application/zip with all 4 JPEGs.
       const zipBlob = await response.blob();
       const manifestHeader = response.headers.get("X-Post-Manifest");
       type ManifestEntry = { key: keyof GeneratedPosts; filename: string };
@@ -81,9 +82,9 @@ export default function HomePage() {
       for (const entry of manifest) {
         const file = zip.file(entry.filename);
         if (!file) continue;
-        const pngBlob = await file.async("blob");
+        const imageBlob = await file.async("blob");
         const url = URL.createObjectURL(
-          new Blob([pngBlob], { type: "image/png" }),
+          new Blob([imageBlob], { type: "image/jpeg" }),
         );
         partial[entry.key] = { filename: entry.filename, url };
       }
