@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const FRAME_KINDS = ["A", "B", "C"] as const;
 export const FRAME_FORMATS = ["9x16", "1x1", "16x9"] as const;
+export const FRAME_TAGS = ["10anos", "testemunho", "nenhuma"] as const;
 
 export type FrameKindLiteral = (typeof FRAME_KINDS)[number];
 export type FrameFormatLiteral = (typeof FRAME_FORMATS)[number];
@@ -15,6 +16,7 @@ export const frameTestimonialSchema = z.object({
 export const frameSelectionsSchema = z.object({
   moldura: z.enum(FRAME_KINDS),
   formatos: z.array(z.enum(FRAME_FORMATS)).min(1, "Escolhe pelo menos um formato."),
+  etiqueta: z.enum(FRAME_TAGS).optional().default("10anos"),
 });
 
 export const frameRequestSchema = z.object({
